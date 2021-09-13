@@ -31,14 +31,15 @@ Device.__newindex = function(self, k, v)
     -- Cache the result
     self.portdata[k] = v
     local port = self.ports[k]
-    -- Ignore write triggers for the low byte of a short
     if port then
       -- Duplicating writing the low byte for convenience
-      if port.byte == "high" then
+      local b = port.byte
+      if b == "high" then
         self[k+1] = bit.band(v, 0xff)
       end
-      if port.onwrite and port.byte ~= "low" then
-        return self.ports[k].onwrite(self, v)
+      -- Ignore write triggers for the low byte of a short
+      if port.onwrite and b ~= "low" then
+        return port.onwrite(self, v)
       end
     end
   else 
