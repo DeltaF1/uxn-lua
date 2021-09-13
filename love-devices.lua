@@ -254,7 +254,28 @@ controller:addPort(2, false)
 -- Key
 controller:addPort(3, false)
 
+local mouse = Device:new()
+
+mouse:addPort(0, true, nil, function(vec)
+  love.mouse.setVisible(vec == 0x00)
+end)
+
+-- X
+mouse:addPort(2, true)
+
+-- Y
+mouse:addPort(4, true)
+
+-- Mouse state
+mouse:addPort(6, false)
+
+-- Mouse wheel
+mouse:addPort(7, false)
+
+devices.system = system
 devices.console = console
 devices.screen = screen
 devices.controller = controller
+devices.mouse = mouse
+
 return devices
