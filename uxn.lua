@@ -1,7 +1,7 @@
 local bit = require "bit"
 local math = require "math"
 
-local function uint8_to_int8(byte)
+function uint8_to_int8(byte)
   byte = bit.band(byte, 0xff)
   if bit.band(byte, 0x80) ~= 0 then
     -- Two's complement
@@ -26,42 +26,34 @@ function Stack:new(limit)
   local limit = limit or 256
   return setmetatable({
     limit = limit,
-    data = {}
   }, self)
 end
 
 function Stack:push(byte)
-  if #self.data == self.limit then
-    error("stack overflow")
-  end
-  table.insert(self.data, byte)
-  return true
+  self[#self + 1] = byte
 end
 
 function Stack:pop()
-  if #self.data == 0 then
-    error("stack underflow")
-  end
-  return table.remove(self.data)
+  return table.remove(self)
 end
 
 function Stack:check(n)
-  local new = #self.data + n
+  local new = #self + n
   return new >= 0 and new <= self.limit
 end
 
 function Stack:getnth(n)
-  return self.data[#self.data-n]
+  return self[#self - n]
 end
 
 function Stack:debug()
-  print(unpack(self.data))
+  print(unpack(self))
 end
 
 local Memory = {
   __index = function(t, k)
     if type(k) == "number" then
-      local rom = t.hex_rom
+      --[[local rom = t.hex_rom
       if rom then
         -- Don't try to map the rom onto the zero page
         k = k - 256
@@ -73,12 +65,10 @@ local Memory = {
           return rom_byte
         end
       end
-    
+      ]]--
       -- Uninitialized memory should be randomized for robust testing
-      print("READ UNINITIALIZED MEMORY")
+      error("READ UNINITIALIZED MEMORY @ "..bit.tohex(k))
       return love.math.random(255)
-    else
-      return rawget(t, k)
     end
   end
 }
@@ -102,13 +92,17 @@ function bytes_to_shorts(bytes)
   for i = 1, #bytes, 2 do
     local high_byte = bytes[i]
     local low_byte = bytes[i+1]
-    table.insert(shorts, bit.lshift(high_byte, 8) + low_byte)
+    shorts[#shorts + 1] = bit.band(bit.lshift(high_byte, 8) + low_byte, 0xffff)
   end
   return shorts
 end
 
-function bytes_to_short(bytes)
-  return bytes_to_shorts(bytes)[1]
+function bytes_to_short(high, low)
+  if not low then
+    low = high[2]
+    high = high[1]
+  end
+  return bit.band(bit.lshift(high, 8) + low, 0xffff)
 end
 
 function shorts_to_bytes(shorts)
@@ -119,15 +113,14 @@ function shorts_to_bytes(shorts)
     local high_byte = bit.rshift(short, 8)
     -- Mask out the low byte
     local low_byte = bit.band(short, 0xff)
-    table.insert(bytes, high_byte)
-    table.insert(bytes, low_byte)
+    bytes[#bytes + 1] = high_byte
+    bytes[#bytes + 1] = low_byte
   end
 
   return bytes
 end
 
 function Uxn:get_n(n, keep_bit, return_bit, short_bit)
-  local output = {}
   -- Choose which stack to operate on
   local stack = return_bit and self.return_stack or self.program_stack
  
@@ -139,24 +132,20 @@ function Uxn:get_n(n, keep_bit, return_bit, short_bit)
     error("Stack not big enough to get "..tostring(n).." bytes")  
   end
   
+  local output = {}
+  
   for i = 1, n do
     if keep_bit then
-      print("peeking off the stack")
-      table.insert(output, 1, stack:getnth(i-1))
+      output[(n - i) + 1] = stack:getnth(i-1)
     else
-      print("popping off the stack")
-      table.insert(output, 1, stack:pop())
+      output[(n - i) + 1] = stack:pop()
     end
   end
- 
-  assert(#output == n)
 
   if short_bit then
     output = bytes_to_shorts(output)
-    assert(#output == n/2)
   end
-
-
+  
   return output
 end
 
@@ -186,12 +175,22 @@ function Uxn:put(data, keep_bit, return_bit, short_bit)
   end
 end
 
-function Uxn:extractOpcode(byte)
-  local keep_bit = bit.band(byte, 128) ~= 0  -- 0b1000 0000
-  local return_bit = bit.band(byte, 64) ~= 0 -- 0b0100 0000
-  local short_bit = bit.band(byte, 32) ~= 0  -- 0b0010 0000
+function Uxn:push(value, k, r, s)
+  local stack = r and self.return_stack or self.program_stack
+  assert(stack:check(1 + (s and 1 or 0)), "Can't push", value, "k", k, "r", r, "s", s)
 
-  local opcode = bit.band(byte, 31) -- 0b0001 1111
+  if s then
+    stack:push(bit.band(bit.rshift(value, 8), 0xff))
+  end
+  stack:push(bit.band(value, 0xff))
+end
+
+local function extractOpcode(byte)
+  local keep_bit = bit.band(byte, 0x80) ~= 0  -- 0b1000 0000
+  local return_bit = bit.band(byte, 0x40) ~= 0 -- 0b0100 0000
+  local short_bit = bit.band(byte, 0x20) ~= 0  -- 0b0010 0000
+
+  local opcode = bit.band(byte, 0x1f) -- 0b0001 1111
 
   return opcode, keep_bit, return_bit, short_bit
 end
@@ -207,8 +206,6 @@ function Uxn:device_read(addr, k, r, s)
     
     if s then
       value = bit.lshift(value, 8) + device[port+1] 
-    else
-      value = bit.band(0xff, value)
     end
     
     return value
@@ -225,7 +222,7 @@ function Uxn:device_write(addr, value, k, r, s)
   local port_num = bit.band(addr, 0x0f) 
 
   if device then
-    print("wrote", bit.tohex(value), "to", bit.tohex(addr))
+    if self.PRINT then print("wrote", bit.tohex(value), "to", bit.tohex(addr)) end
     if s then
       -- Write the low byte first
       -- Device only triggers onwrite when the high byte is written
@@ -258,11 +255,6 @@ function Uxn:trig_device(device_num)
   return nil
 end
 
-function Uxn:jump(addr)
-  print("jumping to ", bit.tohex(addr))
-  self.ip = addr
-end
-
 local function makeOp(n_args, f)
   return function(self, k, r, s)
     local stack_data = self:get_n(n_args, k, r, s)
@@ -274,9 +266,9 @@ local function makeOp(n_args, f)
       error("Expected "..tostring(n_args).." args, got "..tostring(#stack_data))
     end
     local args = {self, unpack(stack_data) }
-    table.insert(args, k)
-    table.insert(args, r)
-    table.insert(args, s)
+    args[#args + 1] = k
+    args[#args + 1] = r
+    args[#args + 1] = s
     
     return f(unpack(args))
   end
@@ -288,8 +280,9 @@ local function simpleOp(n_args, f)
     local ret = {
       f(self, k, r, s)
     }
-
-    self:put(ret, k, r, s)
+    for i = 1, #ret do
+      self:push(ret[i], k, r, s)
+    end
   end
 end
 
@@ -306,7 +299,7 @@ local opNames = {
   "EQU",
   "NEQ",
   "GTH",
-  "LKH",
+  "LTH",
   "JMP",
   "JCN",
   "JSR",
@@ -338,37 +331,49 @@ local opTable = {
   function(self, k, r, s)
     local value
     if s then
-      print("Pushing short literal")
-      value = bytes_to_shorts({self.memory[self.ip], self.memory[self.ip+1]})[1]
+      value = bytes_to_short(self.memory[self.ip], self.memory[self.ip+1])
     else
-      print("Pushing byte literal")
       value = self.memory[self.ip]
     end
-    print("value = ",bit.tohex(value))
-    self:put({value}, k, r, s) 
-    self:jump(self.ip + (s and 2 or 1))
+    if self.PRINT then print("Push "..(s and "short" or "byte").." value = ",bit.tohex(value)) end
+    self:put({value}, k, r, s)
+    self.ip = self.ip + (s and 2 or 1)
   end,
 
   -- 0x01 INC
-  simpleOp(1, function(self, a) return a + 1 end),
+  simpleOp(1, function(self, a)
+    return a + 1
+  end),
 
   -- 0x02 POP
-  simpleOp(1, function(self, a) return nil end),
+  simpleOp(1, function(self, a)
+    return nil
+  end),
 
   -- 0x03 DUP
-  simpleOp(1, function(self, a) return a, a end),
+  simpleOp(1, function(self, a)
+    return a, a
+  end),
 
   -- 0x04 NIP
-  simpleOp(2, function(self, a, b) return b end),
+  simpleOp(2, function(self, a, b)
+    return b
+  end),
 
   -- 0x05 SWAP
-  simpleOp(2, function(self, a, b) return b, a end),
+  simpleOp(2, function(self, a, b)
+    return b, a
+  end),
 
   -- 0x06 OVER
-  simpleOp(2, function(self, a, b) return a, b, a end),
+  simpleOp(2, function(self, a, b)
+    return a, b, a
+  end),
 
   -- 0x07 ROT 
-  simpleOp(3, function(self, a, b, c) return b, c, a end),
+  simpleOp(3, function(self, a, b, c)
+    return b, c, a
+  end),
 
 
   -- LOGIC
@@ -400,8 +405,8 @@ local opTable = {
       -- relative jump
       addr = uint8_to_int8(addr) + self.ip
     end
-    
-    self:jump(addr)
+
+    self.ip = addr
   end),
   
   -- 0x0d JCN
@@ -409,6 +414,7 @@ local opTable = {
     -- Fetch the top 2 or 3 bytes
     local data = self:get_n(2 + (s and 1 or 0), k, r, false)
 
+    -- TODO: Make this more efficient
     local flag = table.remove(data, 1)
     if flag ~= 0 then
       local addr
@@ -418,7 +424,7 @@ local opTable = {
         addr = self.ip + uint8_to_int8(data[1])
       end
 
-      self:jump(addr)
+      self.ip = addr
     end
   end,
 
@@ -431,7 +437,7 @@ local opTable = {
     -- Stash 
     self:put({self.ip}, k, true, true)
 
-    self:jump(addr)
+    self.ip = addr
   end),
 
   -- 0x0f STH
@@ -463,8 +469,17 @@ local opTable = {
     self.memory[offset] = data[1]
     
     if s then
-      print("[STZ] storing", data[2], "at", offset+1)
       self.memory[offset+1] = data[2]
+    end
+    if self.PRINT then
+      print("[STZ]")
+      for i = 0, 15 do
+        s = ""
+        for j = 0, 15 do
+          s = s .. bit.tohex(self.memory[i*16+j], 2) .. " "
+        end
+        print(s)
+      end
     end
   end,
 
@@ -513,7 +528,7 @@ local opTable = {
   function(self, k, r, s)
     local data = self:get_n(s and 4 or 3, k, r, false)
 
-    local address = bytes_to_short({data[#data-1], data[#data]})
+    local address = bytes_to_short(data[#data-1], data[#data])
     
     self.memory[address] = data[1]
     
@@ -537,7 +552,7 @@ local opTable = {
     local address = table.remove(data)
     local value
     if s then
-      value = bytes_to_shorts(data)[1]
+      value = bytes_to_short(data)
     else
       value = data[1]
     end
@@ -549,25 +564,40 @@ local opTable = {
   -- ARITHMETIC
   --
   -- 0x18 ADD
-  simpleOp(2, function(self, a, b) return a + b end),
+  simpleOp(2, function(self, a, b)
+    return a + b
+  end),
 
   -- 0x19 SUB
-  simpleOp(2, function(self, a, b) return a - b end),
+  simpleOp(2, function(self, a, b)
+    return a - b
+  end),
 
   -- 0x1a MUL
-  simpleOp(2, function(self, a, b) return a * b end),
+  simpleOp(2, function(self, a, b)
+    return a * b
+  end),
 
   -- 0x1b DIV
-  simpleOp(2, function(self, a, b) return math.floor(a / b) end),
+  simpleOp(2, function(self, a, b)
+    assert(b ~= 0, "Can't divide by zero!")
+    return math.floor(a / b)
+  end),
 
   -- 0x1c AND
-  simpleOp(2, function(self, a, b) return bit.band(a, b) end),
+  simpleOp(2, function(self, a, b)
+    return bit.band(a, b)
+  end),
 
   -- 0x1d OR
-  simpleOp(2, function(self, a, b) return bit.bor(a, b) end),
+  simpleOp(2, function(self, a, b)
+    return bit.bor(a, b)
+  end),
 
   -- 0x1e EOR
-  simpleOp(2, function(self, a, b) return bit.bxor(a, b) end),
+  simpleOp(2, function(self, a, b)
+    return bit.bxor(a, b)
+  end),
 
   -- 0x1f SFT
   -- "Shift in short mode expects a single byte"
@@ -577,7 +607,7 @@ local opTable = {
     local amount = table.remove(data)
     local value
     if s then
-      value = bytes_to_shorts(data)[1]
+      value = bytes_to_short(data)
     else
       value = data[1]
     end
@@ -600,16 +630,18 @@ end
 function Uxn:executeOnce()
   local opByte = self.memory[self.ip]
   if opByte == 0 then return false end
-  print("ip", bit.tohex(self.ip)) 
+  if self.PRINT then
+    print("ip", bit.tohex(self.ip)) 
+  end
   self.ip = self.ip + 1
 
-  local opcode, k, r, s = self:extractOpcode(opByte)
-  print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
-  print("PS", table.concat(map(self.program_stack.data, function(b) return bit.tohex(b, 2) end), " "))
-  print("RS", table.concat(map(self.return_stack.data, function(b) return bit.tohex(b, 2) end), " "))
-  local func = opTable[opcode+1]
-  
-  func(self, k, r, s)
+  local opcode, k, r, s = extractOpcode(opByte)
+  if self.PRINT then
+    print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
+    print("PS", table.concat(map(self.program_stack, function(b) return bit.tohex(b, 2) end), " "))
+    print("RS", table.concat(map(self.return_stack, function(b) return bit.tohex(b, 2) end), " "))
+  end
+  opTable[opcode+1](self, k, r, s)
   return true
 end
 
