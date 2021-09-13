@@ -158,3 +158,63 @@ function love.filedropped(file)
 
   cpu:runUntilBreak()
 end
+
+local offX = 0
+local offY = 0
+
+local xScale = 2
+local yScale = 2
+function normalizeMouse(x, y)
+  -- Move to the center to offset math.floor
+  x = x + 0.5
+  y = y + 0.5
+
+  x = x - offX
+  y = y - offY
+
+  x = x / xScale
+  y = y / yScale
+
+  return math.floor(x), math.floor(y)
+end
+
+function love.mousemoved(x, y)
+  x, y = normalizeMouse(x, y)
+
+  mouse[2] = x
+  mouse[4] = y
+
+  mouse:trigger()
+end
+
+function love.mousepressed(x, y, button)
+  x, y = normalizeMouse(x, y)
+
+  mouse[2] = x
+  mouse[4] = y
+
+  mouse[6] = bit.bor(mouse[6], button == 1 and 0x01 or 0x10)
+
+  mouse:trigger()
+end
+
+function love.mousereleased(x, y, button)
+  x, y = normalizeMouse(x, y)
+
+  mouse[2] = x
+  mouse[4] = y
+
+  mouse[6] = bit.band(mouse[6], button == 1 and 0x10 or 0x01)
+
+  mouse:trigger()
+end
+
+function love.wheelmoved(_, y)
+  mouse[7] = y > 0 and 1 or -1
+
+  mouse:trigger()
+end
+
+function love.update(dt)
+  mouse[7] = 0
+end
