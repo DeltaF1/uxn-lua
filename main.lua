@@ -181,10 +181,13 @@ end
 function love.mousemoved(x, y)
   x, y = normalizeMouse(x, y)
 
-  mouse[2] = x
-  mouse[4] = y
+  if mouse:readShort(2) ~= x or mouse:readShort(4) ~= y then
 
-  mouse:trigger()
+    mouse[2] = x
+    mouse[4] = y
+
+    mouse:trigger()
+  end
 end
 
 function love.mousepressed(x, y, button)
