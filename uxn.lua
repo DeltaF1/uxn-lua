@@ -30,24 +30,30 @@ function Stack:new(limit)
   local limit = limit or 256
   return setmetatable({
     limit = limit,
+    head = 0,
   }, self)
 end
 
 function Stack:push(byte)
-  self[#self + 1] = byte
+  local head = self.head + 1
+  self[head] = byte
+  self.head = head
 end
 
 function Stack:pop()
-  return table.remove(self)
+  local head = self.head
+  local value = self[head]
+  self.head = head - 1
+  return value
 end
 
 function Stack:check(n)
-  local new = #self + n
+  local new = self.head + n
   return new >= 0 and new <= self.limit
 end
 
 function Stack:getnth(n)
-  return self[#self - n]
+  return self[self.head - n]
 end
 
 function Stack:debug()
