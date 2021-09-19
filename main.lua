@@ -10,7 +10,9 @@ Device = require "device"
 function setupCPU(mem)
   local cpu = Uxn:new(mem)
   cpu.ip = 256
-  cpu.PRINT = true
+  cpu.PRINT = false
+  cpu.memory.ERROR_ON_UNINITIALIZED_READ = false
+
   system = cpu:add_device(0, devices.system)
   console = cpu:add_device(1, devices.console)
   screen = cpu:add_device(2, devices.screen)
@@ -45,7 +47,13 @@ function love.load()
   print("cpu is done initial run") 
 
   if PROFILE then
+    Device.DEBUG_NUM_CALLS.read = {}
+    Device.DEBUG_NUM_CALLS.write = {}
     love.profiler.start()
+    cpu.debug_profile = {}
+    cpu.device_triggers = {}
+    cpu.device_reads = {}
+    cpu.device_writes = {}
   end
 end
 
@@ -118,6 +126,32 @@ function love.draw()
   if frame == PROFILE then
     love.profiler.stop()
     oprint(love.profiler.report())
+    print("device", "num_triggers")
+    for k, v in pairs(cpu.device_triggers) do
+      print(k, v)
+    end
+
+    print("device", "cpu_reads")
+    for k, v in pairs(cpu.device_reads) do
+      print(k, v)
+    end
+
+    print("device", "cpu_writes")
+    for k, v in pairs(cpu.device_writes) do
+      print(k, v)
+    end
+
+    print("device", "total Device reads")
+    for k, v in pairs(Device.DEBUG_NUM_CALLS.read) do
+      print(k, v)
+    end
+
+    print("device, total Device writes")
+    for k, v in pairs(Device.DEBUG_NUM_CALLS.write) do
+      print(k, v)
+    end
+
+    print(cpu:print_profile())
   end
   love.graphics.push()
   love.graphics.scale(2,2)

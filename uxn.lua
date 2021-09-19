@@ -51,7 +51,7 @@ function Stack:debug()
 end
 
 local Memory = {
-  __index = function(t, k)
+  __index = function(self, k)
     if type(k) == "number" then
       --[[local rom = t.hex_rom
       if rom then
@@ -67,7 +67,9 @@ local Memory = {
       end
       ]]--
       -- Uninitialized memory should be randomized for robust testing
-      error("READ UNINITIALIZED MEMORY @ "..bit.tohex(k))
+      if self.ERROR_ON_UNINITIALIZED_READ then
+        error("READ UNINITIALIZED MEMORY @ "..bit.tohex(k))
+      end
       return love.math.random(255)
     end
   end
@@ -83,8 +85,27 @@ function Uxn:new(mem)
     program_stack = Stack:new(),
     return_stack = Stack:new(),
     memory = setmetatable(mem or {}, Memory),
-    devices = {}
+    devices = {},
+    vectors = {},
+    -- DEBUG TABLES
+    debug_profile = {},
+    device_triggers = {}, -- Debug
+    device_reads = {}, -- DEBUG
+    device_writes = {}, -- DEBUG
   }, self)
+end
+
+function Uxn:profile(...)
+  local name = table.concat({...}, "_")
+  self.debug_profile[name] = (self.debug_profile[name] or 0) + 1
+end
+
+function Uxn:print_profile()
+  local output = "name\t\tcount\n"
+  for k,v in pairs(self.debug_profile) do
+    output = output .. k.."\t\t"..v.."\n"
+  end
+  return output
 end
 
 function bytes_to_shorts(bytes)
@@ -222,6 +243,8 @@ function Uxn:device_write(addr, value, k, r, s)
   local port_num = bit.band(addr, 0x0f) 
 
   if device then
+    self:profile("DEO", device_num, port_num)
+    self.device_writes[device_num] = (self.device_writes[device_num] or 0) + 1
     if self.PRINT then print("wrote", bit.tohex(value), "to", bit.tohex(addr)) end
     if s then
       -- Write the low byte first
@@ -236,6 +259,8 @@ function Uxn:add_device(device_num, device)
   if self.devices[device_num] then
     error("Device already exists at ", bit.tohex(device_num))
   end
+
+  print("adding", device_num)
   
   device.cpu = self
   device.device_num = device_num
@@ -249,10 +274,10 @@ function Uxn:trig_device(device_num)
   local device_addr = bit.lshift(device_num, 4)
   local vector = self:device_read(device_addr, nil, nil, true)
   if vector > 0 then
+    self.device_triggers[device_num] = (self.device_triggers[device_num] or 0) + 1
     self.ip = vector
     return self:runUntilBreak()
   end
-  return nil
 end
 
 local function makeOp(n_args, f)
@@ -471,16 +496,6 @@ local opTable = {
     if s then
       self.memory[offset+1] = data[2]
     end
-    if self.PRINT then
-      print("[STZ]")
-      for i = 0, 15 do
-        s = ""
-        for j = 0, 15 do
-          s = s .. bit.tohex(self.memory[i*16+j], 2) .. " "
-        end
-        print(s)
-      end
-    end
   end,
 
   -- 0x12 LDR
@@ -636,6 +651,7 @@ function Uxn:executeOnce()
   self.ip = self.ip + 1
 
   local opcode, k, r, s = extractOpcode(opByte)
+  self:profile(opNames[opcode])
   if self.PRINT then
     print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
     print("PS", table.concat(map(self.program_stack, function(b) return bit.tohex(b, 2) end), " "))

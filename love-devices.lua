@@ -1,10 +1,10 @@
 local Device = require "device"
 
-local nilfunc = function() end
-
 local devices = {}
 
 local system = Device:new()
+
+system.name = "system"
 
 function regeneratePalette(system)
   local r,g,b = system:readShort(8), system:readShort(10), system:readShort(12)
@@ -35,6 +35,7 @@ system.initColours = false
 system:addPort(0x08, true, nil, regeneratePalette)
 system:addPort(0x0a, true, nil, regeneratePalette)
 system:addPort(0x0c, true, nil, function(self)
+  print("Setting up palette")
   regeneratePalette(self)
 
   -- This is a janky janky hack to try and detect the first time the system colours are written to
@@ -52,15 +53,15 @@ end)
 -- portnum, short, read, write
 
 local console = Device:new()
+console.name = "console"
 console.stdout = ""
 console.stderr = ""
 
--- Vector
-console:addPort(0, true)
 -- read char
 console:addPort(2, false)
 -- write char
 console:addPort(8, false, nil, function(self, byte)
+  print("wrote char")
   self.stdout = self.stdout..string.char(byte)
 end)
 -- error char
@@ -71,6 +72,8 @@ end)
 local width, height = 300, 200
 
 local screen = Device:new()
+
+screen.name = "screen"
 
 screen.back  = love.graphics.newCanvas(width, height)
 screen.front = love.graphics.newCanvas(width, height)
@@ -248,6 +251,8 @@ end)
 
 local controller = Device:new()
 
+controller.name = "controller"
+
 -- Button
 controller:addPort(2, false)
 
@@ -259,6 +264,7 @@ local mouse = Device:new()
 mouse:addPort(0, true, nil, function(vec)
   love.mouse.setVisible(vec == 0x00)
 end)
+mouse.name = "mouse"
 
 -- X
 mouse:addPort(2, true)

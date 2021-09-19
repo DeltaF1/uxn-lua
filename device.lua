@@ -1,7 +1,11 @@
 local Device = {}
 
+Device.DEBUG_NUM_CALLS = { read = {}, write = {}}
+
 Device.__index = function(self, k)
   if type(k) == "number" then
+    Device.DEBUG_NUM_CALLS.read[self.device_num or self] = (Device.DEBUG_NUM_CALLS.read[self.device_num or self] or 0) + 1
+
     local value = self.portdata[k] or 0
     local port = self.ports[k]
     if port then
@@ -13,12 +17,9 @@ Device.__index = function(self, k)
         value = bit.rshift(value, 8)
       end
     end
-
     return bit.band(value, 0xff)
   elseif Device[k] then
     return Device[k]
-  else
-    return rawget(self, k)
   end
 end
 
@@ -28,7 +29,7 @@ end
 
 Device.__newindex = function(self, k, v)
   if type(k) == "number" then
-    -- Cache the result
+    Device.DEBUG_NUM_CALLS.write[self.device_num or self] = (Device.DEBUG_NUM_CALLS.write[self.device_num or self] or 0) + 1
     self.portdata[k] = v
     local port = self.ports[k]
     if port then
@@ -69,7 +70,10 @@ function Device:addPort(num, short, read, write)
 end
 
 function Device:trigger()
-  self.cpu:trig_device(self.device_num)
+  local instr = self.cpu:trig_device(self.device_num)
+  if instr then
+    print(self.name, "trigger ran in", instr, "instructions")
+  end
 end
 
 return Device
