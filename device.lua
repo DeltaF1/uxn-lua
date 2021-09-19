@@ -11,10 +11,9 @@ Device.__index = function(self, k)
     if port then
       if port.onread then
         value = port.onread(self) 
-      end
-      
-      if port.byte == "high" then
-        value = bit.rshift(value, 8)
+        if port.byte == "high" then
+          value = bit.rshift(value, 8)
+        end
       end
     end
     return bit.band(value, 0xff)
@@ -24,7 +23,13 @@ Device.__index = function(self, k)
 end
 
 function Device:readShort(port)
-  return bit.lshift(self[port],8) + self[port+1]
+  return bit.lshift(self[port], 8) + self[port+1]
+end
+
+function Device:writeShort(port, short)
+  -- Write the low byte first since onwrite only triggers on the high byte
+  self[port+1] = bit.band(short, 0xff)
+  self[port] = bit.rshift(short, 8)
 end
 
 Device.__newindex = function(self, k, v)
@@ -33,15 +38,16 @@ Device.__newindex = function(self, k, v)
     self.portdata[k] = v
     local port = self.ports[k]
     if port then
-      -- Duplicating writing the low byte for convenience
-      local b = port.byte
-      if b == "high" then
-        self[k+1] = bit.band(v, 0xff)
-      end
       -- Ignore write triggers for the low byte of a short
-      if port.onwrite and b ~= "low" then
+      if port.onwrite and port.byte ~= "low" then
         return port.onwrite(self, v)
       end
+    end
+
+    -- TODO: If there's no handlers attached to this port, just store the value
+    if not (port and (port.onwrite or port.onread)) then
+      -- Cache the result
+      rawset(self, k, v)
     end
   else 
     return rawset(self, k, v)

@@ -221,12 +221,14 @@ function Uxn:device_read(addr, k, r, s)
   local device = self.devices[device_num]
   
   if device then
+    self.device_reads[device_num] = (self.device_reads[device_num] or 0) + 1
     local port = bit.band(addr, 0x0f)
 
-    local value = device[port]
-    
+    local value 
     if s then
-      value = bit.lshift(value, 8) + device[port+1] 
+      value = device:readShort(port)
+    else
+      value = device[port]
     end
     
     return value
@@ -246,12 +248,12 @@ function Uxn:device_write(addr, value, k, r, s)
     self:profile("DEO", device_num, port_num)
     self.device_writes[device_num] = (self.device_writes[device_num] or 0) + 1
     if self.PRINT then print("wrote", bit.tohex(value), "to", bit.tohex(addr)) end
+
     if s then
-      -- Write the low byte first
-      -- Device only triggers onwrite when the high byte is written
-      device[port_num+1] = bit.band(value, 0xff)
+      device:writeShort(port_num, value)
+    else
+      device[port_num] = value
     end
-    device[port_num] = value
   end
 end
 

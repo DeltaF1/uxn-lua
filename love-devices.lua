@@ -84,11 +84,11 @@ screen.front:setFilter("nearest", "nearest")
 
 -- Width
 screen:addPort(2, true)
-screen[2] = width
+screen:writeShort(2, width)
 
 -- Height
 screen:addPort(4, true)
-screen[4] = height
+screen:writeShort(4, height)
 
 -- X
 screen:addPort(8, true)

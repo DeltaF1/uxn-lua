@@ -212,13 +212,16 @@ function normalizeMouse(x, y)
   return math.floor(x), math.floor(y)
 end
 
+local old_x, old_y
 function love.mousemoved(x, y)
   x, y = normalizeMouse(x, y)
+  if x ~= old_x or y ~= old_y then
 
-  if mouse:readShort(2) ~= x or mouse:readShort(4) ~= y then
+    mouse:writeShort(2, x)
+    mouse:writeShort(4, y)
 
-    mouse[2] = x
-    mouse[4] = y
+    old_x = x
+    old_y = y
 
     mouse:trigger()
   end
@@ -227,8 +230,8 @@ end
 function love.mousepressed(x, y, button)
   x, y = normalizeMouse(x, y)
 
-  mouse[2] = x
-  mouse[4] = y
+  mouse:writeShort(2, x)
+  mouse:writeShort(4, y)
 
   mouse[6] = bit.bor(mouse[6], button == 1 and 0x01 or 0x10)
 
@@ -238,8 +241,8 @@ end
 function love.mousereleased(x, y, button)
   x, y = normalizeMouse(x, y)
 
-  mouse[2] = x
-  mouse[4] = y
+  mouse:writeShort(2, x)
+  mouse:writeShort(4, y)
 
   mouse[6] = bit.band(mouse[6], button == 1 and 0x10 or 0x01)
 
