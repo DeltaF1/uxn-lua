@@ -87,7 +87,7 @@ keyToBit = {
 function love.textinput(text)
   controller[3] = string.byte(string.sub(text,1,1))
 
-  cpu:trig_device(8)
+  controller:trigger()
 end
 
 function love.keypressed(key)
@@ -111,21 +111,21 @@ function love.keypressed(key)
     controller[3] = ascii
   end
 
-  cpu:trig_device(8)
+  controller:trigger()
 end
 
 function love.keyreleased(key)
-  controller[2] = bit.band(controller[2], bit.bnot(keyToBit[key] or 0))
+  controller[2] = band(controller[2], bnot(keyToBit[key] or 0))
   controller[3] = 0
 
-  cpu:trig_device(8)
+  controller:trigger()
 end
 
 frame = 0
 function love.draw()
   frame = frame + 1
   print("\n=====[draw]=====\n")
-  cpu:trig_device(2)
+  screen:trigger()
   print("draw vector done")
   if frame == PROFILE then
     love.profiler.stop()
