@@ -1,5 +1,7 @@
 local Device = require "device"
-local Uxn = require "uxn"
+local uxn = require "uxn"
+
+local Uxn = uxn.Uxn
 
 function init_zero_page(memory)
   for i = 0, 255 do
@@ -949,7 +951,7 @@ end)
 
 describe("helper function", function()
   test("uint8_to_int8", function()
-    local u = uint8_to_int8
+    local u = uxn.uint8_to_int8
     assert(u(0xff) == -1)
     assert(u(128) == -128)
     assert(u(127) == 127)

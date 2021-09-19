@@ -696,4 +696,4 @@ function Uxn:runUntilBreak()
   return i
 end
 
-return Uxn
+return {Uxn = Uxn, uint8_to_int8 = uint8_to_int8}

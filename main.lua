@@ -1,6 +1,6 @@
 PROFILE = nil
 oprint = print
-Uxn = require "uxn"
+Uxn = (require "uxn").Uxn
 bit = require "bit"
 
 local band, bor, bxor, bnot = bit.band, bit.bor, bit.bxor, bit.bnot
