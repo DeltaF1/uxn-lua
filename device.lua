@@ -43,8 +43,7 @@ Device.__newindex = function(self, k, v)
         return port.onwrite(self, v)
       end
     end
-
-    -- TODO: If there's no handlers attached to this port, just store the value
+    -- If there's no handlers attached to this port, just store the value
     if not (port and (port.onwrite or port.onread)) then
       -- Cache the result
       rawset(self, k, v)
@@ -79,7 +78,7 @@ end
 
 function Device:trigger()
   local instr = self.cpu:trig_device(self.device_num)
-  if instr then
+  if instr and instr > 0 then
     print(self.name, "trigger ran in", instr, "instructions")
   end
 end

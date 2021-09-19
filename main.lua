@@ -2,6 +2,10 @@ PROFILE = nil
 oprint = print
 Uxn = require "uxn"
 bit = require "bit"
+
+local band, bor, bxor, bnot = bit.band, bit.bor, bit.bxor, bit.bnot
+local arshift, rshift, lshift = bit.arshift, bit.rshift, bit.lshift
+
 local math = require "math"
 devices = require "love-devices"
 
@@ -87,7 +91,7 @@ function love.textinput(text)
 end
 
 function love.keypressed(key)
-  controller[2] = bit.bor(controller[2], keyToBit[key] or 0)
+  controller[2] = bor(controller[2], keyToBit[key] or 0)
   
   local ascii
 
@@ -233,7 +237,7 @@ function love.mousepressed(x, y, button)
   mouse:writeShort(2, x)
   mouse:writeShort(4, y)
 
-  mouse[6] = bit.bor(mouse[6], button == 1 and 0x01 or 0x10)
+  mouse[6] = bor(mouse[6], button == 1 and 0x01 or 0x10)
 
   mouse:trigger()
 end
@@ -244,7 +248,7 @@ function love.mousereleased(x, y, button)
   mouse:writeShort(2, x)
   mouse:writeShort(4, y)
 
-  mouse[6] = bit.band(mouse[6], button == 1 and 0x10 or 0x01)
+  mouse[6] = band(mouse[6], button == 1 and 0x10 or 0x01)
 
   mouse:trigger()
 end

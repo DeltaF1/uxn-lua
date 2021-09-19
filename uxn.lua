@@ -1,14 +1,18 @@
 local bit = require "bit"
 local math = require "math"
 
-function uint8_to_int8(byte)
-  byte = bit.band(byte, 0xff)
-  if bit.band(byte, 0x80) ~= 0 then
+local band, bor, bxor, bnot = bit.band, bit.bor, bit.bxor, bit.bnot
+local arshift, rshift, lshift = bit.arshift, bit.rshift, bit.lshift
+
+
+local function uint8_to_int8(byte)
+  byte = band(byte, 0xff)
+  if band(byte, 0x80) ~= 0 then
     -- Two's complement
-    byte = bit.bnot(byte) + 1
+    byte = bnot(byte) + 1
 
     -- Crop out the non 8-bit data
-    byte = bit.band(byte, 0xff)
+    byte = band(byte, 0xff)
 
     -- It's now the absolute value
     -- Return a negative lua number
@@ -113,7 +117,7 @@ function bytes_to_shorts(bytes)
   for i = 1, #bytes, 2 do
     local high_byte = bytes[i]
     local low_byte = bytes[i+1]
-    shorts[#shorts + 1] = bit.band(bit.lshift(high_byte, 8) + low_byte, 0xffff)
+    shorts[#shorts + 1] = band(lshift(high_byte, 8) + low_byte, 0xffff)
   end
   return shorts
 end
@@ -123,7 +127,7 @@ function bytes_to_short(high, low)
     low = high[2]
     high = high[1]
   end
-  return bit.band(bit.lshift(high, 8) + low, 0xffff)
+  return band(lshift(high, 8) + low, 0xffff)
 end
 
 function shorts_to_bytes(shorts)
@@ -131,9 +135,9 @@ function shorts_to_bytes(shorts)
   
   for i = 1, #shorts do
     local short = shorts[i]
-    local high_byte = bit.rshift(short, 8)
+    local high_byte = rshift(short, 8)
     -- Mask out the low byte
-    local low_byte = bit.band(short, 0xff)
+    local low_byte = band(short, 0xff)
     bytes[#bytes + 1] = high_byte
     bytes[#bytes + 1] = low_byte
   end
@@ -191,7 +195,7 @@ function Uxn:put(data, keep_bit, return_bit, short_bit)
     end
     
     -- Ensure that the data fits within byte limits
-    byte = bit.band(byte, 0xff)
+    byte = band(byte, 0xff)
     stack:push(byte)
   end
 end
@@ -201,28 +205,28 @@ function Uxn:push(value, k, r, s)
   assert(stack:check(1 + (s and 1 or 0)), "Can't push", value, "k", k, "r", r, "s", s)
 
   if s then
-    stack:push(bit.band(bit.rshift(value, 8), 0xff))
+    stack:push(band(rshift(value, 8), 0xff))
   end
-  stack:push(bit.band(value, 0xff))
+  stack:push(band(value, 0xff))
 end
 
 local function extractOpcode(byte)
-  local keep_bit = bit.band(byte, 0x80) ~= 0  -- 0b1000 0000
-  local return_bit = bit.band(byte, 0x40) ~= 0 -- 0b0100 0000
-  local short_bit = bit.band(byte, 0x20) ~= 0  -- 0b0010 0000
+  local keep_bit = band(byte, 0x80) ~= 0  -- 0b1000 0000
+  local return_bit = band(byte, 0x40) ~= 0 -- 0b0100 0000
+  local short_bit = band(byte, 0x20) ~= 0  -- 0b0010 0000
 
-  local opcode = bit.band(byte, 0x1f) -- 0b0001 1111
+  local opcode = band(byte, 0x1f) -- 0b0001 1111
 
   return opcode, keep_bit, return_bit, short_bit
 end
 
 function Uxn:device_read(addr, k, r, s)
-  local device_num = bit.rshift(addr, 4)
+  local device_num = rshift(addr, 4)
   local device = self.devices[device_num]
   
   if device then
     self.device_reads[device_num] = (self.device_reads[device_num] or 0) + 1
-    local port = bit.band(addr, 0x0f)
+    local port = band(addr, 0x0f)
 
     local value 
     if s then
@@ -239,10 +243,10 @@ function Uxn:device_read(addr, k, r, s)
 end
 
 function Uxn:device_write(addr, value, k, r, s)
-  local device_num = bit.rshift(addr, 4)
+  local device_num = rshift(addr, 4)
   local device = self.devices[device_num]
 
-  local port_num = bit.band(addr, 0x0f) 
+  local port_num = band(addr, 0x0f)
 
   if device then
     self:profile("DEO", device_num, port_num)
@@ -283,6 +287,16 @@ function Uxn:trig_device(device_num)
 end
 
 local function makeOp(n_args, f)
+  local args = {}
+  -- Preallocate args table
+  -- 1 for self, 3 for k r s
+  local len = n_args + 1 + 3
+  for i = 1, len do
+    args[i] = false
+  end
+  local k_ind = #args - 2
+  local r_ind = #args - 1
+  local s_ind = #args
   return function(self, k, r, s)
     local stack_data = self:get_n(n_args, k, r, s)
     if #stack_data ~= n_args then
@@ -292,10 +306,16 @@ local function makeOp(n_args, f)
       print("stack_data", table.concat(stack_data, " "))
       error("Expected "..tostring(n_args).." args, got "..tostring(#stack_data))
     end
-    local args = {self, unpack(stack_data) }
-    args[#args + 1] = k
-    args[#args + 1] = r
-    args[#args + 1] = s
+
+    args[1] = self
+
+    for i = 1, n_args do
+      args[i+1] = stack_data[i]
+    end
+
+    args[k_ind] = k
+    args[r_ind] = r
+    args[s_ind] = s
     
     return f(unpack(args))
   end
@@ -481,7 +501,7 @@ local opTable = {
     local value = self.memory[offset]
 
     if s then
-      value = bit.lshift(value, 8) + self.memory[offset + 1]
+      value = lshift(value, 8) + self.memory[offset + 1]
     end
 
     self:push(value, k, r, s)
@@ -509,7 +529,7 @@ local opTable = {
     local value = self.memory[addr]
 
     if s then
-      value = bit.lshift(value, 8) + self.memory[addr+1]
+      value = lshift(value, 8) + self.memory[addr+1]
     end
 
     self:push(value, k, r, s)
@@ -535,7 +555,7 @@ local opTable = {
     local value = self.memory[addr]
 
     if s then
-      value = bit.lshift(value, 8) + self.memory[addr+1]
+      value = lshift(value, 8) + self.memory[addr+1]
     end
 
     self:push(value, k, r, s)
@@ -621,7 +641,7 @@ local opTable = {
   function(self, k, r, s)
     local data = self:get_n(s and 3 or 2, k, r, false)
 
-    local amount = table.remove(data)
+    local amount = data[#data]
     local value
     if s then
       value = bytes_to_short(data)
@@ -629,8 +649,8 @@ local opTable = {
       value = data[1]
     end
 
-    value = bit.arshift(value, bit.band(amount, 0x0f))
-    value = bit.lshift(value, bit.rshift(bit.band(amount, 0xf0), 4))
+    value = arshift(value, band(amount, 0x0f))
+    value = lshift(value, rshift(band(amount, 0xf0), 4))
 
     self:push(value, k, r, s)
   end,

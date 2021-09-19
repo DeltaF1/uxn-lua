@@ -1,3 +1,8 @@
+local bit = require "bit"
+
+local band, bor, bxor, bnot = bit.band, bit.bor, bit.bxor, bit.bnot
+local arshift, rshift, lshift = bit.arshift, bit.rshift, bit.lshift
+
 local Device = require "device"
 
 local devices = {}
@@ -101,8 +106,8 @@ screen:addPort(12, true)
 
 -- Write a single pixel
 screen:addPort(14, false, nil, function(self, pixel)
-  local layer = bit.band(pixel, 0x30)
-  local colour = bit.band(pixel, 0x03)
+  local layer = band(pixel, 0x30)
+  local colour = band(pixel, 0x03)
   
   -- Read colour palette from the system device
   colour = self.cpu.devices[0].palette[colour]
@@ -162,7 +167,7 @@ TWO_BPP_PALETTE = {
 }
 
 function getBit(val, n)
-  return bit.rshift(bit.band(val, bit.lshift(1, n)), n)
+  return rshift(band(val, lshift(1, n)), n)
 end
 
 -- Draw a sprite
@@ -170,21 +175,21 @@ screen:addPort(15, false, nil, function(self, spriteByte)
   -- 1bpp = 0 / 2bpp = 1
   local spriteMode = getBit(spriteByte, 7)
 
-  local layer = bit.band(spriteByte, 0x40) == 0 and self.back or self.front
+  local layer = band(spriteByte, 0x40) == 0 and self.back or self.front
 
-  local verticalFlip = bit.band(spriteByte, 0x20) ~= 0
-  local horizontalFlip = bit.band(spriteByte, 0x10) ~= 0
+  local verticalFlip = band(spriteByte, 0x20) ~= 0
+  local horizontalFlip = band(spriteByte, 0x10) ~= 0
  
   local x,y = self:readShort(0x08), self:readShort(0x0a)
   local spriteAddr = self:readShort(0x0c)
   
   local palette
   if spriteMode == 0 then
-    palette = ONE_BPP_PALETTE[bit.band(spriteByte, 0x0f)]
+    palette = ONE_BPP_PALETTE[band(spriteByte, 0x0f)]
     -- TODO: Fix the palette table
     palette = {palette[2], palette[1]}
   else
-    palette = TWO_BPP_PALETTE[bit.band(spriteByte, 0x0f)]
+    palette = TWO_BPP_PALETTE[band(spriteByte, 0x0f)]
   end
 
   love.graphics.setCanvas(layer)
@@ -216,8 +221,8 @@ screen:addPort(15, false, nil, function(self, spriteByte)
         value = getBit(row, bitAddr)
         colour = palette[value+1]
       else
-        value = bit.bor(
-          bit.lshift(getBit(row2, bitAddr), 1),
+        value = bor(
+          lshift(getBit(row2, bitAddr), 1),
           getBit(row, bitAddr)
         )
 
