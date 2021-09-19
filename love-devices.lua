@@ -82,9 +82,6 @@ screen.sprites = love.graphics.newCanvas(width, height)
 screen.back:setFilter("nearest", "nearest")
 screen.front:setFilter("nearest", "nearest")
 
--- Vector
-screen:addPort(0, true)
-
 -- Width
 screen:addPort(2, true)
 screen[2] = width
@@ -261,9 +258,6 @@ controller:addPort(3, false)
 
 local mouse = Device:new()
 
-mouse:addPort(0, true, nil, function(vec)
-  love.mouse.setVisible(vec == 0x00)
-end)
 mouse.name = "mouse"
 
 -- X

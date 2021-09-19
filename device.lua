@@ -55,7 +55,9 @@ function Device:new(devicenum)
   }, self)
 
   -- Add vector port by default
-  device:addPort(0, true)
+  device:addPort(0, true, false, function(self, value)
+    self.cpu.vectors[self.device_num] = self:readShort(0)
+  end)
 
   return device
 end

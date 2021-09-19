@@ -271,9 +271,9 @@ function Uxn:add_device(device_num, device)
 end
 
 function Uxn:trig_device(device_num)
-  local device_addr = bit.lshift(device_num, 4)
-  local vector = self:device_read(device_addr, nil, nil, true)
-  if vector > 0 then
+  local vector = self.vectors[device_num]
+  --local vector = self.devices[device_num]:readShort(0)
+  if vector then
     self.device_triggers[device_num] = (self.device_triggers[device_num] or 0) + 1
     self.ip = vector
     return self:runUntilBreak()
