@@ -670,28 +670,27 @@ function map(t, f)
   return new
 end
 
-function Uxn:executeOnce()
-  local opByte = self.memory[self.ip]
-  if opByte == 0 then return false end
-  if self.PRINT then
-    print("ip", bit.tohex(self.ip)) 
-  end
-  self.ip = self.ip + 1
-
-  local opcode, k, r, s = extractOpcode(opByte)
-  self:profile(opNames[opcode])
-  if self.PRINT then
-    print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
-    print("PS", table.concat(map(self.program_stack, function(b) return bit.tohex(b, 2) end), " "))
-    print("RS", table.concat(map(self.return_stack, function(b) return bit.tohex(b, 2) end), " "))
-  end
-  opTable[opcode+1](self, k, r, s)
-  return true
-end
-
 function Uxn:runUntilBreak()
   local i = 0
-  while self:executeOnce() do
+  local extractOpcode = extractOpcode
+  local memory = self.memory
+  while true do
+    local opByte = memory[self.ip]
+    if opByte == 0 then break end
+    if self.PRINT then
+      print("ip", bit.tohex(self.ip))
+    end
+    self.ip = self.ip + 1
+
+    local opcode, k, r, s = extractOpcode(opByte)
+    --self:profile(opNames[opcode])
+    if self.PRINT then
+      print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
+      print("PS", table.concat(map(self.program_stack, function(b) return bit.tohex(b, 2) end), " "))
+      print("RS", table.concat(map(self.return_stack, function(b) return bit.tohex(b, 2) end), " "))
+    end
+    opTable[opcode+1](self, k, r, s)
+
     i = i + 1
   end
   return i
