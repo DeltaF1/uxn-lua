@@ -388,38 +388,44 @@ local opTable = {
   end,
 
   -- 0x01 INC
-  simpleOp(1, function(self, a)
-    return a + 1
+  makeOp(1, function(self, a, k, r, s)
+    self:push(a + 1, k, r, s)
   end),
 
   -- 0x02 POP
-  simpleOp(1, function(self, a)
-    return nil
+  makeOp(1, function(self, a, k, r, s)
+    -- Do nothing
   end),
 
   -- 0x03 DUP
-  simpleOp(1, function(self, a)
-    return a, a
+  makeOp(1, function(self, a, k, r, s)
+    self:push(a, k, r, s)
+    self:push(a, k, r, s)
   end),
 
   -- 0x04 NIP
-  simpleOp(2, function(self, a, b)
-    return b
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(b, k, r, s)
   end),
 
   -- 0x05 SWAP
-  simpleOp(2, function(self, a, b)
-    return b, a
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(b, k, r, s)
+    self:push(a, k, r, s)
   end),
 
   -- 0x06 OVER
-  simpleOp(2, function(self, a, b)
-    return a, b, a
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(a, k, r, s)
+    self:push(b, k, r, s)
+    self:push(a, k, r, s)
   end),
 
   -- 0x07 ROT 
-  simpleOp(3, function(self, a, b, c)
-    return b, c, a
+  makeOp(3, function(self, a, b, c, k, r, s)
+    self:push(b, k, r, s)
+    self:push(c, k, r, s)
+    self:push(a, k, r, s)
   end),
 
 
@@ -601,39 +607,39 @@ local opTable = {
   -- ARITHMETIC
   --
   -- 0x18 ADD
-  simpleOp(2, function(self, a, b)
-    return a + b
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(a + b, k, r, s)
   end),
 
   -- 0x19 SUB
-  simpleOp(2, function(self, a, b)
-    return a - b
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(a - b, k, r, s)
   end),
 
   -- 0x1a MUL
-  simpleOp(2, function(self, a, b)
-    return a * b
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(a * b, k, r, s)
   end),
 
   -- 0x1b DIV
-  simpleOp(2, function(self, a, b)
+  makeOp(2, function(self, a, b, k, r, s)
     assert(b ~= 0, "Can't divide by zero!")
-    return math.floor(a / b)
+    self:push(math.floor(a / b), k, r, s)
   end),
 
   -- 0x1c AND
-  simpleOp(2, function(self, a, b)
-    return bit.band(a, b)
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(band(a, b), k, r, s)
   end),
 
   -- 0x1d OR
-  simpleOp(2, function(self, a, b)
-    return bit.bor(a, b)
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(bor(a, b), k, r, s)
   end),
 
   -- 0x1e EOR
-  simpleOp(2, function(self, a, b)
-    return bit.bxor(a, b)
+  makeOp(2, function(self, a, b, k, r, s)
+    self:push(bxor(a, b), k, r, s)
   end),
 
   -- 0x1f SFT
