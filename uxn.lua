@@ -361,7 +361,7 @@ local opTable = {
       value = self.memory[self.ip]
     end
     if self.PRINT then print("Push "..(s and "short" or "byte").." value = ",bit.tohex(value)) end
-    self:put({value}, k, r, s)
+    self:push(value, k, r, s)
     self.ip = self.ip + (s and 2 or 1)
   end,
 
@@ -406,22 +406,22 @@ local opTable = {
   -- 0x08 EQU
   makeOp(2, function(self, a, b, k, r, s)
     -- Push the flag as a single byte, so short mode is false in Uxn:put
-    self:put({a == b and 1 or 0}, k, r, false)
+    self:push(a == b and 1 or 0, k, r, false)
   end),
 
   -- 0x09 NEQ
   makeOp(2, function(self, a, b, k, r, s)
-    self:put({a ~= b and 1 or 0}, k, r, false)
+    self:push(a ~= b and 1 or 0, k, r, false)
   end),
 
   -- 0x0a GTH
   makeOp(2, function(self, a, b, k, r, s)
-    self:put({a > b and 1 or 0}, k, r, false)
+    self:push(a > b and 1 or 0, k, r, false)
   end),
 
   -- 0x0b LTH
   makeOp(2, function(self, a, b, k, r, s)
-    self:put({a < b and 1 or 0}, k, r, false)
+    self:push(a < b and 1 or 0, k, r, false)
   end),
 
   -- 0x0c JMP
@@ -460,14 +460,14 @@ local opTable = {
     end
     
     -- Stash 
-    self:put({self.ip}, k, true, true)
+    self:push(self.ip, k, true, true)
 
     self.ip = addr
   end),
 
   -- 0x0f STH
   makeOp(1, function(self, a, k, r, s)
-    self:put({a}, k, not r, s)
+    self:push(a, k, not r, s)
   end),
 
   -- MEMORY
@@ -482,7 +482,7 @@ local opTable = {
       value = bit.lshift(value, 8) + self.memory[offset + 1]
     end
 
-    self:put({value}, k, r, s)
+    self:push(value, k, r, s)
   end,
 
   -- 0x11 STZ
@@ -510,7 +510,7 @@ local opTable = {
       value = bit.lshift(value, 8) + self.memory[addr+1]
     end
 
-    self:put({value}, k, r, s)
+    self:push(value, k, r, s)
   end,
 
   -- 0x13 STR
@@ -536,7 +536,7 @@ local opTable = {
       value = bit.lshift(value, 8) + self.memory[addr+1]
     end
 
-    self:put({value}, k, r, s)
+    self:push(value, k, r, s)
   end,
 
   -- 0x15 STA
@@ -556,7 +556,7 @@ local opTable = {
   -- 0x16 DEI
   function(self, k, r, s)
     local offset = (self:get_n(1, k, r, false))[1]
-    self:put({self:device_read(offset, k, r, s)}, k, r, s)
+    self:push(self:device_read(offset, k, r, s), k, r, s)
   end,
 
 
@@ -630,7 +630,7 @@ local opTable = {
     value = bit.arshift(value, bit.band(amount, 0x0f))
     value = bit.lshift(value, bit.rshift(bit.band(amount, 0xf0), 4))
 
-    self:put({value}, k, r, s)
+    self:push(value, k, r, s)
   end,
 }
 
