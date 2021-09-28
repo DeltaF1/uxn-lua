@@ -29,7 +29,7 @@ end
 function Device:writeShort(port, short)
   -- Write the low byte first since onwrite only triggers on the high byte
   self[port+1] = bit.band(short, 0xff)
-  self[port] = bit.rshift(short, 8)
+  self[port] = bit.band(bit.rshift(short, 8), 0xff)
 end
 
 Device.__newindex = function(self, k, v)
