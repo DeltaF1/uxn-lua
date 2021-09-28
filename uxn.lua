@@ -30,28 +30,43 @@ function Stack:new(limit)
   local limit = limit or 256
   return setmetatable({
     limit = limit,
+    head = 0,
   }, self)
 end
 
 function Stack:push(byte)
-  self[#self + 1] = byte
+  local head = self.head + 1
+  self[head] = byte
+  self.head = head
 end
 
 function Stack:pop()
-  return table.remove(self)
+  local head = self.head
+  local byte = self[head]
+  self.head = head - 1
+  return byte
 end
 
 function Stack:check(n)
-  local new = #self + n
+  local new = self.head + n
   return new >= 0 and new <= self.limit
 end
 
+-- 0-indexed non-destructive get
 function Stack:getnth(n)
-  return self[#self - n]
+  return self[self.head - n]
+end
+
+function Stack:len()
+  return self.head
 end
 
 function Stack:debug()
-  print(unpack(self))
+  local t = {}
+  for i = 1, self.head do
+    t[#t + 1] = bit.tohex(self[i], 2)
+  end
+  return table.concat(t, " ")
 end
 
 local Memory = {
@@ -202,12 +217,36 @@ end
 
 function Uxn:push(value, k, r, s)
   local stack = r and self.return_stack or self.program_stack
-  assert(stack:check(1 + (s and 1 or 0)), "Can't push", value, "k", k, "r", r, "s", s)
+  --assert(stack:check(1 + (s and 1 or 0)), "Can't push", value, "k", k, "r", r, "s", s)
 
   if s then
     stack:push(band(rshift(value, 8), 0xff))
   end
   stack:push(band(value, 0xff))
+end
+
+function Uxn:pop(k, r, s)
+  local stack = r and self.return_stack or self.program_stack
+  local value
+  if k then
+    local offset = self.peek_offset
+    if s then
+      value = bytes_to_short(stack:getnth(offset+1), stack:getnth(offset))
+      offset = offset + 2
+    else
+      value = stack:getnth(offset)
+      offset = offset + 1
+    end
+    self.peek_offset = offset
+  else
+    if s then
+      local low = stack:pop()
+      return bytes_to_short(stack:pop(), low)
+    else
+      return stack:pop()
+    end
+  end
+  return value
 end
 
 local function extractOpcode(byte)
@@ -232,7 +271,7 @@ function Uxn:device_read(addr, k, r, s)
     if s then
       value = device:readShort(port)
     else
-      value = device[port]
+      value = band(device[port], 0xff)
     end
     
     return value
@@ -388,93 +427,108 @@ local opTable = {
   end,
 
   -- 0x01 INC
-  makeOp(1, function(self, a, k, r, s)
+  function(self, k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a + 1, k, r, s)
-  end),
+  end,
 
   -- 0x02 POP
-  makeOp(1, function(self, a, k, r, s)
-    -- Do nothing
-  end),
+  function(self, k, r, s)
+    self:pop(k, r, s)
+  end,
 
   -- 0x03 DUP
-  makeOp(1, function(self, a, k, r, s)
+  function(self, k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a, k, r, s)
     self:push(a, k, r, s)
-  end),
+  end,
 
   -- 0x04 NIP
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    self:pop(k, r, s)
     self:push(b, k, r, s)
-  end),
+  end,
 
   -- 0x05 SWAP
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(b, k, r, s)
     self:push(a, k, r, s)
-  end),
+  end,
 
   -- 0x06 OVER
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a, k, r, s)
     self:push(b, k, r, s)
     self:push(a, k, r, s)
-  end),
+  end,
 
   -- 0x07 ROT 
-  makeOp(3, function(self, a, b, c, k, r, s)
+  function(self, k, r, s)
+    local c = self:pop(k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(b, k, r, s)
     self:push(c, k, r, s)
     self:push(a, k, r, s)
-  end),
+  end,
 
 
   -- LOGIC
   --
   -- 0x08 EQU
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     -- Push the flag as a single byte, so short mode is false in Uxn:put
     self:push(a == b and 1 or 0, k, r, false)
-  end),
+  end,
 
   -- 0x09 NEQ
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a ~= b and 1 or 0, k, r, false)
-  end),
+  end,
 
   -- 0x0a GTH
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a > b and 1 or 0, k, r, false)
-  end),
+  end,
 
   -- 0x0b LTH
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a < b and 1 or 0, k, r, false)
-  end),
+  end,
 
   -- 0x0c JMP
-  makeOp(1, function(self, addr, k, r, s)
+  function(self, k, r, s)
+    local addr = self:pop(k, r, s)
     if not s then
       -- relative jump
       addr = uint8_to_int8(addr) + self.ip
     end
 
     self.ip = addr
-  end),
+  end,
   
   -- 0x0d JCN
   function(self, k, r, s)
-    -- Fetch the top 2 or 3 bytes
-    local data = self:get_n(2 + (s and 1 or 0), k, r, false)
+    local addr = self:pop(k, r, s)
+    local flag = self:pop(k, r, false)
 
-    -- TODO: Make this more efficient
-    local flag = table.remove(data, 1)
     if flag ~= 0 then
-      local addr
-      if s then
-        addr = bytes_to_short(data)
-      else
-        addr = self.ip + uint8_to_int8(data[1])
+      if not s then
+        addr = self.ip + uint8_to_int8(addr)
       end
 
       self.ip = addr
@@ -482,7 +536,8 @@ local opTable = {
   end,
 
   -- 0x0e JSR
-  makeOp(1, function(self, addr, k, r, s)
+  function(self, k, r, s)
+    local addr = self:pop(k, r, s)
     if not s then
       addr = uint8_to_int8(addr) + self.ip
     end
@@ -491,18 +546,19 @@ local opTable = {
     self:push(self.ip, k, true, true)
 
     self.ip = addr
-  end),
+  end,
 
   -- 0x0f STH
-  makeOp(1, function(self, a, k, r, s)
+  function(self, k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a, k, not r, s)
-  end),
+  end,
 
   -- MEMORY
   --
   -- 0x10 LDZ
   function(self, k, r, s)
-    local offset = (self:get_n(1, k, r, false))[1]
+    local offset = self:pop(k, r, false)
     
     local value = self.memory[offset]
 
@@ -528,7 +584,7 @@ local opTable = {
 
   -- 0x12 LDR
   function(self, k, r, s)
-    local offset = (self:get_n(1, k, r, false))[1]
+    local offset = self:pop(k, r, false)
     
     local addr = uint8_to_int8(offset) + self.ip
 
@@ -556,7 +612,7 @@ local opTable = {
 
   -- 0x14 LDA
   function(self, k, r, s)
-    local addr = (self:get_n(1, k, r, true))[1]
+    local addr = self:pop(k, r, true)
 
     local value = self.memory[addr]
 
@@ -583,22 +639,15 @@ local opTable = {
 
   -- 0x16 DEI
   function(self, k, r, s)
-    local offset = (self:get_n(1, k, r, false))[1]
+    local offset = self:pop(k, r, false)
     self:push(self:device_read(offset, k, r, s), k, r, s)
   end,
 
 
   -- 0x17 DEO
   function(self, k, r, s)
-    local data = self:get_n(s and 3 or 2, k, r, false)
-
-    local address = table.remove(data)
-    local value
-    if s then
-      value = bytes_to_short(data)
-    else
-      value = data[1]
-    end
+    local address = self:pop(k, r, false)
+    local value = self:pop(k, r, s)
     
     self:device_write(address, value, k, r, s)
   end,
@@ -607,53 +656,60 @@ local opTable = {
   -- ARITHMETIC
   --
   -- 0x18 ADD
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a + b, k, r, s)
-  end),
+  end,
 
   -- 0x19 SUB
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a - b, k, r, s)
-  end),
+  end,
 
   -- 0x1a MUL
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(a * b, k, r, s)
-  end),
+  end,
 
   -- 0x1b DIV
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     assert(b ~= 0, "Can't divide by zero!")
     self:push(math.floor(a / b), k, r, s)
-  end),
+  end,
 
   -- 0x1c AND
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(band(a, b), k, r, s)
-  end),
+  end,
 
   -- 0x1d OR
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(bor(a, b), k, r, s)
-  end),
+  end,
 
   -- 0x1e EOR
-  makeOp(2, function(self, a, b, k, r, s)
+  function(self, k, r, s)
+    local b = self:pop(k, r, s)
+    local a = self:pop(k, r, s)
     self:push(bxor(a, b), k, r, s)
-  end),
+  end,
 
   -- 0x1f SFT
   -- "Shift in short mode expects a single byte"
   function(self, k, r, s)
-    local data = self:get_n(s and 3 or 2, k, r, false)
-
-    local amount = data[#data]
-    local value
-    if s then
-      value = bytes_to_short(data)
-    else
-      value = data[1]
-    end
+    local amount = self:pop(k, r, false)
+    local value = self:pop(k, r, s)
 
     value = arshift(value, band(amount, 0x0f))
     value = lshift(value, rshift(band(amount, 0xf0), 4))
@@ -686,9 +742,11 @@ function Uxn:runUntilBreak()
     --self:profile(opNames[opcode])
     if self.PRINT then
       print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
-      print("PS", table.concat(map(self.program_stack, function(b) return bit.tohex(b, 2) end), " "))
-      print("RS", table.concat(map(self.return_stack, function(b) return bit.tohex(b, 2) end), " "))
+      print("PS", self.program_stack:debug())
+      print("RS", self.return_stack:debug())
     end
+    -- Reset the peek offset so consective calls to :pop maintain state
+    if k then self.peek_offset = 0 end
     opTable[opcode+1](self, k, r, s)
 
     i = i + 1
