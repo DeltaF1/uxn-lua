@@ -103,6 +103,13 @@ screen:writeShort(2, width)
 screen:addPort(4, true)
 screen:writeShort(4, height)
 
+-- Auto
+screen:addPort(6, false, nil, function(self, byte)
+  self.auto_x = band(byte, 0x01) ~= 0
+  self.auto_y = band(byte, 0x02) ~= 0
+  self.auto_addr = band(byte, 0x04) ~= 0
+end)
+
 -- X
 screen:addPort(8, true)
 
@@ -290,6 +297,21 @@ screen:addPort(15, false, nil, function(self, spriteByte)
   love.graphics.setCanvas()
 
   love.graphics.setBlendMode("alpha")
+
+  if self.auto_x then
+    x = x + 8
+    self:writeShort(8, x)
+  end
+
+  if self.auto_y then
+    y = y + 8
+    self:writeShort(10, y)
+  end
+
+  if self.auto_addr then
+    spriteAddr = spriteAddr + 8 + (8 * spriteMode)
+    self:writeShort(0x0c, spriteAddr)
+  end
 end)
 
 local controller = Device:new()
