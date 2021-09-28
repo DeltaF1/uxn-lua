@@ -11,11 +11,17 @@ local system = Device:new()
 
 system.name = "system"
 
+-- Default palette of black, Red, Green, and Blue
+system.palette = {
+  [0]={0,0,0},
+  {1,0,0},
+  {0,1,0},
+  {0,0,1},
+}
+
 function regeneratePalette(system)
   local r,g,b = system:readShort(8), system:readShort(10), system:readShort(12)
   r,g,b = bit.tohex(r, 4), bit.tohex(g, 4), bit.tohex(b, 4)
-
-  system.palette = {}
 
   for i = 0, 3 do
     -- Grab the hex digit for each colour channel
@@ -32,28 +38,23 @@ function regeneratePalette(system)
     }
 
     system.palette[i] = colour
+
   end
+
+  paletteShader:send("palette",
+    system.palette[0],
+    system.palette[1],
+    system.palette[2],
+    system.palette[3])
+
+  --love.graphics.setBackgroundColor(system.palette[0])
 end
 
 system.initColours = false
 
 system:addPort(0x08, true, nil, regeneratePalette)
 system:addPort(0x0a, true, nil, regeneratePalette)
-system:addPort(0x0c, true, nil, function(self)
-  print("Setting up palette")
-  regeneratePalette(self)
-
-  -- This is a janky janky hack to try and detect the first time the system colours are written to
-
-  if not self.initColours then
-    self.initColours = true
-    -- Set bg canvas colour to system colour 0
-    love.graphics.setCanvas(self.cpu.devices[2].back)
-    love.graphics.clear(self.palette[0])
-    love.graphics.setCanvas()
-
-  end
-end)
+system:addPort(0x0c, true, nil, regeneratePalette)
 
 -- portnum, short, read, write
 
@@ -82,7 +83,14 @@ screen.name = "screen"
 
 screen.back  = love.graphics.newCanvas(width, height)
 screen.front = love.graphics.newCanvas(width, height)
-screen.sprites = love.graphics.newCanvas(width, height)
+
+love.graphics.setCanvas(back)
+  -- System colour 0 at full alpha
+  love.graphics.clear(0,0,0,1)
+love.graphics.setCanvas(front)
+  -- System colour 0 (irrelevant) with alpha
+  love.graphics.clear(0,0,0,0)
+love.graphics.setCanvas()
 
 screen.back:setFilter("nearest", "nearest")
 screen.front:setFilter("nearest", "nearest")
@@ -104,14 +112,19 @@ screen:addPort(10, true)
 -- Sprite address
 screen:addPort(12, true)
 
+-- Encode which system colour this pixel should be in the R and G components
+local idxToRGB = {
+  [0] = {0, 0, 0},
+  [1] = {1, 0, 0},
+  [2] = {0, 1, 0},
+  [3] = {1, 1, 0},
+}
+
 -- Write a single pixel
 screen:addPort(14, false, nil, function(self, pixel)
   local layer = band(pixel, 0x30)
-  local colour = band(pixel, 0x03)
+  local index = band(pixel, 0x03)
   
-  -- Read colour palette from the system device
-  colour = self.cpu.devices[0].palette[colour]
-
   local canvas
   if layer == 0 then
     canvas = self.back
@@ -119,17 +132,38 @@ screen:addPort(14, false, nil, function(self, pixel)
     canvas = self.front
   end
 
+  local colour = idxToRGB[index]
+  local alpha = 1.0
+  if index == 0 and layer == 1 then 
+    -- Transparency
+    alpha = 0.0
+  end
+  love.graphics.setBlendMode("alpha")
   love.graphics.setCanvas(canvas)
-  love.graphics.setColor(colour)
-  love.graphics.points(screen:readShort(8), screen:readShort(10))
+  
+  love.graphics.setColor(colour[1], colour[2], colour[3], alpha)
+  
+  local x, y = self:readShort(8), self:readShort(10)
+  -- Offset to account for points grid
+  love.graphics.points(x + 0.5, y + 0.5)
 
   love.graphics.setCanvas()
+
+  if self.auto_x then
+    x = x + 1
+    self:writeShort(8, x)
+  end
+
+  if self.auto_y then
+    y = y + 1
+    self:writeShort(10, y)
+  end
 end)
 
 -- Thank you to Sejo @ https://compudanzas.net for writing out these tables!
 
 ONE_BPP_PALETTE = {
-  [0] = {"clear", "clear"},
+  [0] = {0, 0},
   {1, 0},
   {2, 0},
   {3, 0},
@@ -182,7 +216,9 @@ screen:addPort(15, false, nil, function(self, spriteByte)
  
   local x,y = self:readShort(0x08), self:readShort(0x0a)
   local spriteAddr = self:readShort(0x0c)
-  
+
+  local system_palette = {[0] = {0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}}
+
   local palette
   if spriteMode == 0 then
     palette = ONE_BPP_PALETTE[band(spriteByte, 0x0f)]
@@ -191,6 +227,8 @@ screen:addPort(15, false, nil, function(self, spriteByte)
   else
     palette = TWO_BPP_PALETTE[band(spriteByte, 0x0f)]
   end
+
+  local points = {}
 
   love.graphics.setCanvas(layer)
   
@@ -215,40 +253,43 @@ screen:addPort(15, false, nil, function(self, spriteByte)
         bitAddr = 7 - bitAddr
       end
       
-      local value, colour
+      local value, colour_index
       -- 1 bpp
       if spriteMode == 0 then
         value = getBit(row, bitAddr)
-        colour = palette[value+1]
+        colour_index = palette[value+1]
       else
         value = bor(
           lshift(getBit(row2, bitAddr), 1),
           getBit(row, bitAddr)
         )
 
-        colour = palette[value+1]
+        colour_index = palette[value+1]
       end
 
-      if colour ~= "none" then
-        if colour == "clear" then
-          if layer == self.front then
-            love.graphics.setBlendMode("replace")
-          end
-          love.graphics.setColor(0,0,0,0)
-        else
-          love.graphics.setColor(self.cpu.devices[0].palette[colour])
+      if colour_index ~= "none" then
+        local colour = idxToRGB[colour_index]
+        local alpha = 1.0
+        if colour_index == 0 and layer == self.front then
+          alpha = 0.0
         end
 
-        love.graphics.points( x+(j-1), y+(i-1) )
+        -- Offset by 0.5, 0.5 to account for points grid
+        points[#points+1] = {x + j + 0.5, y + i + 0.5, colour[1], colour[2], colour[3], alpha}
 
-        if colour == "clear" then
-          love.graphics.setBlendMode("alpha")
-        end
       end
     end
   end
 
+  love.graphics.setColor(1, 1, 1, 1)
+  love.graphics.setBlendMode("replace", "premultiplied")
+  love.graphics.setCanvas(layer)
+
+  love.graphics.points(points)
+
   love.graphics.setCanvas()
+
+  love.graphics.setBlendMode("alpha")
 end)
 
 local controller = Device:new()
