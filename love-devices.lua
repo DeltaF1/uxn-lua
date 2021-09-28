@@ -340,10 +340,104 @@ mouse:addPort(6, false)
 -- Mouse wheel
 mouse:addPort(7, false)
 
+local function openFile(self, mode)
+  local cpu = self.cpu
+
+  -- Pointer to the name string
+  local name_address = self:readShort(8)
+
+  -- Construct a 32-bit seek offset from 2 device shorts
+  local seek = lshift(self:readShort(4), 16) + self:readShort(6)
+
+  local fileName = ""
+  local counter = name_address
+  local char
+
+  -- Assume null-terminated strings
+  while char ~= 0x00 do
+    char = cpu.memory[counter]
+    fileName = fileName .. string.char(char)
+    counter = counter + 1
+  end
+
+  print("Trying to open file called ", fileName)
+
+  local file = love.filesystem.newFile(fileName)
+
+  local ok, err = file:open(mode)
+
+  if not ok then return nil end
+
+  file:seek(seek)
+
+  return file
+end
+
+local file = Device:new()
+
+-- Success
+file:addPort(2, true)
+
+-- File seek ( 32 bits )
+file:addPort(4, true)
+file:addPort(6, true)
+
+-- Pointer to file name
+file:addPort(8, true)
+
+-- Amount of file to read
+file:addPort(10, true)
+
+-- Read
+file:addPort(12, true, nil, function(self)
+  local length = self:readShort(10)
+  local target_address = self:readShort(12)
+
+  local file = openFile(self, "r")
+
+  if not file then
+    print("file doesn't exist")
+    -- Return 0 length for error?
+    return self:writeShort(2, 0)
+  end
+
+  local contents, real_size = file:read("data", length)
+  print("read", real_size, "bytes")
+  -- Write size to success byte
+  self:writeShort(2, bit.band(real_size, 0xffff))
+
+  -- Interpret the file as a list of bytes
+  local pattern = string.rep("B", real_size)
+  local dataTable = {love.data.unpack(pattern, contents)}
+
+  -- Copy contents to target_address:target_address+length
+  for i = 1, #dataTable - 1 do -- Skip the index value that's returned
+    cpu.memory[target_address + i - 1] = dataTable[i]
+  end
+end)
+
+-- Write
+file:addPort(14, true, function(self)
+  local length = self:readShort(10)
+  local target_address = self:readShort(12)
+
+  local file = openFile(self, "w")
+
+  if not file then
+    print("file can't be opened")
+    return self:writeShort(2, 0)
+  end
+
+  -- Encode memory starting at target, running length bytes
+
+  -- file:write(encodedData)
+end)
+
 devices.system = system
 devices.console = console
 devices.screen = screen
 devices.controller = controller
 devices.mouse = mouse
+devices.file = file
 
 return devices
