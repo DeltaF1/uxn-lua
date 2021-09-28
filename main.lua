@@ -37,10 +37,9 @@ end
 
 function love.load(arg)
   love.mouse.setVisible(false)
-  love.profiler = require('cigumo_profile')
   love.graphics.setDefaultFilter("nearest", "nearest")
 
-  love.graphics.setNewFont("mono.ttf", 14)
+  --love.graphics.setNewFont("mono.ttf", 14)
   love.graphics.setBackgroundColor(0,0,0)
   love.window.setMode((WIDTH * SCALING) + (PADDING * 2), (HEIGHT * SCALING) + (PADDING * 2))
   
@@ -86,11 +85,13 @@ function love.load(arg)
   if PROFILE then
     Device.DEBUG_NUM_CALLS.read = {}
     Device.DEBUG_NUM_CALLS.write = {}
-    love.profiler.start()
     cpu.debug_profile = {}
     cpu.device_triggers = {}
     cpu.device_reads = {}
     cpu.device_writes = {}
+
+    love.profiler = require('cigumo_profile')
+    love.profiler.start()
   end
 end
 

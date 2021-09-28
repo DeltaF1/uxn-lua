@@ -34,7 +34,7 @@ end
 
 Device.__newindex = function(self, k, v)
   if type(k) == "number" then
-    Device.DEBUG_NUM_CALLS.write[self.device_num or self] = (Device.DEBUG_NUM_CALLS.write[self.device_num or self] or 0) + 1
+    --Device.DEBUG_NUM_CALLS.write[self.device_num or self] = (Device.DEBUG_NUM_CALLS.write[self.device_num or self] or 0) + 1
     self.portdata[k] = v
     local port = self.ports[k]
     if port then
@@ -77,10 +77,7 @@ function Device:addPort(num, short, read, write)
 end
 
 function Device:trigger()
-  local instr = self.cpu:trig_device(self.device_num)
-  if instr and instr > 0 then
-    print(self.name, "trigger ran in", instr, "instructions")
-  end
+  self.cpu:trig_device(self.device_num)
 end
 
 return Device
