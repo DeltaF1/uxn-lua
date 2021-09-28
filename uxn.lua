@@ -249,7 +249,7 @@ function Uxn:device_write(addr, value, k, r, s)
   local port_num = band(addr, 0x0f)
 
   if device then
-    self:profile("DEO", device_num, port_num)
+    --self:profile("DEO", device_num, port_num)
     self.device_writes[device_num] = (self.device_writes[device_num] or 0) + 1
     if self.PRINT then print("wrote", bit.tohex(value), "to", bit.tohex(addr)) end
 
