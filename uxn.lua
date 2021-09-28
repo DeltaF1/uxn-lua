@@ -4,7 +4,6 @@ local math = require "math"
 local band, bor, bxor, bnot = bit.band, bit.bor, bit.bxor, bit.bnot
 local arshift, rshift, lshift = bit.arshift, bit.rshift, bit.lshift
 
-
 local function uint8_to_int8(byte)
   byte = band(byte, 0xff)
   if band(byte, 0x80) ~= 0 then
@@ -72,19 +71,6 @@ end
 local Memory = {
   __index = function(self, k)
     if type(k) == "number" then
-      --[[local rom = t.hex_rom
-      if rom then
-        -- Don't try to map the rom onto the zero page
-        k = k - 256
-
-        -- The rom string has two indices per byte and is 1-indexed
-        k = (k * 2)
-        if k >= 0 and #rom >= k then
-          local rom_byte = tonumber(string.sub(rom, k + 1, k + 2), 16)
-          return rom_byte
-        end
-      end
-      ]]--
       -- Uninitialized memory should be randomized for robust testing
       if self.ERROR_ON_UNINITIALIZED_READ then
         error("READ UNINITIALIZED MEMORY @ "..bit.tohex(k))
@@ -187,32 +173,6 @@ function Uxn:get_n(n, keep_bit, return_bit, short_bit)
   end
   
   return output
-end
-
-function Uxn:put(data, keep_bit, return_bit, short_bit)
-  local n = #data
-
-  local stack = return_bit and self.return_stack or self.program_stack
-
-  if short_bit then n = n * 2 end
-
-  -- Make sure the stack has enough space to push n bytes
-  if not stack:check(n) then return nil end
-
-  if short_bit then
-    data = shorts_to_bytes(data)
-  end
-
-  for i = 1, #data do
-    local byte = data[i]
-    if type(byte) == "boolean" then
-      byte = byte and 1 or 0 
-    end
-    
-    -- Ensure that the data fits within byte limits
-    byte = band(byte, 0xff)
-    stack:push(byte)
-  end
 end
 
 function Uxn:push(value, k, r, s)
@@ -322,53 +282,6 @@ function Uxn:trig_device(device_num)
     self.device_triggers[device_num] = (self.device_triggers[device_num] or 0) + 1
     self.ip = vector
     return self:runUntilBreak()
-  end
-end
-
-local function makeOp(n_args, f)
-  local args = {}
-  -- Preallocate args table
-  -- 1 for self, 3 for k r s
-  local len = n_args + 1 + 3
-  for i = 1, len do
-    args[i] = false
-  end
-  local k_ind = #args - 2
-  local r_ind = #args - 1
-  local s_ind = #args
-  return function(self, k, r, s)
-    local stack_data = self:get_n(n_args, k, r, s)
-    if #stack_data ~= n_args then
-      print("About to crash because OP got wrong # of args")
-      print("k", k, "r", r, "s", s)
-      print("PS", table.concat(self.program_stack, " "))
-      print("stack_data", table.concat(stack_data, " "))
-      error("Expected "..tostring(n_args).." args, got "..tostring(#stack_data))
-    end
-
-    args[1] = self
-
-    for i = 1, n_args do
-      args[i+1] = stack_data[i]
-    end
-
-    args[k_ind] = k
-    args[r_ind] = r
-    args[s_ind] = s
-    
-    return f(unpack(args))
-  end
-end
-
-local function simpleOp(n_args, f)
-  f = makeOp(n_args, f)
-  return function(self, k, r, s)
-    local ret = {
-      f(self, k, r, s)
-    }
-    for i = 1, #ret do
-      self:push(ret[i], k, r, s)
-    end
   end
 end
 
@@ -485,7 +398,7 @@ local opTable = {
   function(self, k, r, s)
     local b = self:pop(k, r, s)
     local a = self:pop(k, r, s)
-    -- Push the flag as a single byte, so short mode is false in Uxn:put
+    -- Push the flag as a single byte, so short mode is false in Uxn:push
     self:push(a == b and 1 or 0, k, r, false)
   end,
 
@@ -718,16 +631,8 @@ local opTable = {
   end,
 }
 
-function map(t, f)
-  local new = {}
-  for k,v in pairs(t) do
-    new[k] = f(v)
-  end
-  return new
-end
-
 function Uxn:runUntilBreak()
-  local i = 0
+  local count = 0
   local extractOpcode = extractOpcode
   local memory = self.memory
   while true do
@@ -749,9 +654,9 @@ function Uxn:runUntilBreak()
     if k then self.peek_offset = 0 end
     opTable[opcode+1](self, k, r, s)
 
-    i = i + 1
+    count = count + 1
   end
-  return i
+  return count
 end
 
 return {Uxn = Uxn, uint8_to_int8 = uint8_to_int8}
