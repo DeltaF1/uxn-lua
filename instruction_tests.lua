@@ -24,13 +24,13 @@ describe("the uxn instruction", function()
   local function PS(offset)
     offset = offset or 0
 
-    return cpu.program_stack[#cpu.program_stack + offset]
+    return cpu.program_stack[cpu.program_stack:len() + offset]
   end
 
   local function RS(offset)
     offset = offset or 0
 
-    return cpu.return_stack[#cpu.return_stack + offset]
+    return cpu.return_stack[cpu.return_stack:len() + offset]
   end
 
   local function run_program(program)
@@ -63,8 +63,8 @@ describe("the uxn instruction", function()
         0x34,
       }
 
-      assert(#cpu.program_stack == 0)
-      assert(#cpu.return_stack == 0)
+      assert(cpu.program_stack:len() == 0)
+      assert(cpu.return_stack:len() == 0)
     end)
 
     it("pushes a short in the correct byte order", function()
@@ -87,8 +87,8 @@ describe("the uxn instruction", function()
           value
         }
 
-        assert(cpu.program_stack[#cpu.program_stack] == value)
-        assert(#cpu.return_stack == 0)
+        assert(cpu.program_stack[cpu.program_stack:len()] == value)
+        assert(cpu.return_stack:len() == 0)
       end)
       it("the return stack when requested", function()
         local value = 0x12
@@ -97,8 +97,8 @@ describe("the uxn instruction", function()
           value,
         }
 
-        assert(cpu.return_stack[#cpu.return_stack] == value)
-        assert(#cpu.program_stack == 0)
+        assert(cpu.return_stack[cpu.return_stack:len()] == value)
+        assert(cpu.program_stack:len() == 0)
       end)
     end)
   end)
@@ -165,8 +165,8 @@ describe("the uxn instruction", function()
         0x02 -- POP
       }
 
-      assert(#cpu.program_stack == 0)
-      assert(#cpu.return_stack == 1)
+      assert(cpu.program_stack:len() == 0)
+      assert(cpu.return_stack:len() == 1)
     end)
 
     it("removes bytes from return stack", function()
@@ -176,8 +176,8 @@ describe("the uxn instruction", function()
         0x42 -- POPr
       }
 
-      assert(#cpu.program_stack == 1)
-      assert(#cpu.return_stack == 0)
+      assert(cpu.program_stack:len() == 1)
+      assert(cpu.return_stack:len() == 0)
     end)
 
     it("removes no bytes with keep", function()
@@ -197,7 +197,7 @@ describe("the uxn instruction", function()
       }
 
       assert(PS() == 0xab)
-      assert(#cpu.program_stack == 1)
+      assert(cpu.program_stack:len() == 1)
     end)
 
     it("can't pop shorts with only one byte on the stack", function()
@@ -233,7 +233,7 @@ describe("the uxn instruction", function()
         0xa3, -- DUP2k 1010 0011
       }
 
-      assert(#cpu.program_stack == 6)
+      assert(cpu.program_stack:len() == 6)
     end)
 
     it("leaves 3 bytes on the stack with Keep", function()
@@ -242,7 +242,7 @@ describe("the uxn instruction", function()
         0x83, -- DUPk
       }
 
-      assert(#cpu.program_stack == 3)
+      assert(cpu.program_stack:len() == 3)
     end)
 
     it("duplicates shorts correctly", function()
@@ -251,7 +251,7 @@ describe("the uxn instruction", function()
         0x23, -- DUP2
       }
 
-      assert(#cpu.program_stack == 4)
+      assert(cpu.program_stack:len() == 4)
       assert(PS() == 0x43)
       assert(PS(-1) == 0x21)
       assert(PS() == PS(-2))
@@ -264,7 +264,7 @@ describe("the uxn instruction", function()
         0x03,
       }
 
-      assert(#cpu.program_stack == 2)
+      assert(cpu.program_stack:len() == 2)
       assert(PS() == 0x83)
       assert(PS() == PS(-1))
     end)
@@ -301,7 +301,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("with equal shorts", function()
@@ -312,7 +312,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
 
       pending("keep", true)
@@ -327,7 +327,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("fully not equal shorts", function()
@@ -338,7 +338,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("with shorts with same low bytes", function()
@@ -349,7 +349,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("with shorts with same high bytes", function()
@@ -360,7 +360,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
     end)
   end)
@@ -375,7 +375,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("with equal shorts", function()
@@ -386,7 +386,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x00)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
 
       pending("keep", true)
@@ -401,7 +401,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
 
       it("fully not equal shorts", function()
@@ -412,7 +412,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1) 
+        assert(cpu.program_stack:len() == 1) 
       end)
       
       it("with shorts with same low bytes", function()
@@ -423,7 +423,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
       
       it("with shorts with same high bytes", function()
@@ -434,7 +434,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0x01)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
     end)
   end)
@@ -492,7 +492,7 @@ describe("the uxn instruction", function()
         }
 
         assert(PS() == 0xab)
-        assert(#cpu.program_stack == 1)
+        assert(cpu.program_stack:len() == 1)
       end)
 
       it("wrapping offset", function()
@@ -542,8 +542,8 @@ describe("the uxn instruction", function()
           0x0f, -- STH
         }
 
-        assert(#cpu.program_stack == 0)
-        assert(#cpu.return_stack == 2)
+        assert(cpu.program_stack:len() == 0)
+        assert(cpu.return_stack:len() == 2)
         
         assert(RS() == 0x12)
         assert(RS(-1) == 0x34)
@@ -556,8 +556,8 @@ describe("the uxn instruction", function()
           0x4f, -- STHr
         }
 
-        assert(#cpu.program_stack == 2)
-        assert(#cpu.return_stack == 0)
+        assert(cpu.program_stack:len() == 2)
+        assert(cpu.return_stack:len() == 0)
         
         assert(PS() == 0x34)
         assert(PS(-1) == 0x12)
@@ -570,8 +570,8 @@ describe("the uxn instruction", function()
           0x2f -- STH
         }
       
-        assert(#cpu.program_stack == 0)
-        assert(#cpu.return_stack == 4)
+        assert(cpu.program_stack:len() == 0)
+        assert(cpu.return_stack:len() == 4)
 
         assert(RS() == 0x34)
         assert(RS(-1) == 0x12)
@@ -586,8 +586,8 @@ describe("the uxn instruction", function()
           0x6f -- STH
         }
       
-        assert(#cpu.program_stack == 4)
-        assert(#cpu.return_stack == 0)
+        assert(cpu.program_stack:len() == 4)
+        assert(cpu.return_stack:len() == 0)
 
         assert(PS() == 0xcd)
         assert(PS(-1) == 0xab)
@@ -602,8 +602,8 @@ describe("the uxn instruction", function()
         0xaf, -- STH2k
       }
 
-      assert(#cpu.program_stack == 2)
-      assert(#cpu.return_stack == 2)
+      assert(cpu.program_stack:len() == 2)
+      assert(cpu.return_stack:len() == 2)
     end)
   end)
 
@@ -699,7 +699,7 @@ describe("the uxn instruction", function()
         0x3b,
       }
 
-      assert(#cpu.program_stack == 4)
+      assert(cpu.program_stack:len() == 4)
       assert(PS() == 0x55)
       assert(PS(-1) == 0x67)
 
@@ -746,7 +746,7 @@ describe("the uxn instruction", function()
         0x80, 0xff, 0x10,
       }
 
-      assert(#cpu.program_stack == 3)
+      assert(cpu.program_stack:len() == 3)
       assert(PS() == 0x9a)
       assert(PS(-1) == 0x3c)
       assert(PS(-2) == 0x12)
@@ -764,7 +764,7 @@ describe("the uxn instruction", function()
         0x80, 0xfe, 0x30,
       }
 
-      assert(#cpu.program_stack == 6)
+      assert(cpu.program_stack:len() == 6)
       assert(PS() == 0x9a)
       assert(PS(-1) == 0x78)
       assert(PS(-2) == 0xef)
@@ -789,7 +789,7 @@ describe("the uxn instruction", function()
 
       }
       
-      assert(#cpu.program_stack == 2)
+      assert(cpu.program_stack:len() == 2)
     end)
 
     it("overwrites manually set values ", function()
@@ -857,7 +857,7 @@ describe("the uxn instruction", function()
         0x00,
       }
 
-      assert(#cpu.program_stack == 2)
+      assert(cpu.program_stack:len() == 2)
       assert(PS() == 0x43)
       assert(PS(-1) == 0x21)
     end)
@@ -877,11 +877,11 @@ describe("the uxn instruction", function()
       mem_device:addPort(6, false)
       mem_device:addPort(7, false)
 
-      mem_device[0x02] = 0x2143
+      mem_device:writeShort(0x02, 0x2143)
       mem_device[0x04] = 0x7c -- Too short value in short port
 
       mem_device[0x06] = 0xab
-      mem_device[0x07] = 0x1337 -- Too long value in byte port
+      mem_device:writeShort(0x07, 0x1337) -- Too long value in byte port
 
       cpu:add_device(1, mem_device)
 
@@ -908,10 +908,10 @@ describe("the uxn instruction", function()
         0x16, -- DEI
       }
 
-      assert(#cpu.program_stack == 3, "Only bytes fetched")
+      assert(cpu.program_stack:len() == 3, "Only bytes fetched")
       assert(PS() == 0xab)
       assert(PS(-1) == 0x21)
-      assert(PS(-2) == 0x37)
+      assert(PS(-2) == 0x13)
     end)
 
     it("fetches stored shorts", function()
@@ -926,17 +926,17 @@ describe("the uxn instruction", function()
         0x36, -- DEI2
       }
       
-      assert(#cpu.program_stack == 6, "Only fetch shorts")
+      assert(cpu.program_stack:len() == 6, "Only fetch shorts")
       print("PS")
       cpu.program_stack:debug()
 
       -- Gets the byte from the next mem slot
-      assert(PS() == 0x37)
+      assert(PS() == 0x13)
       assert(PS(-1) == 0xab)
       
-      -- Fetching from a port with too short of a valua just gives it as a short
-      assert(PS(-2) == 0x7c)
-      assert(PS(-3) == 0x00) 
+      -- Fetching from a port with too short of a value
+      assert(PS(-2) == 0x00) 
+      assert(PS(-3) == 0x7c)
      
       -- Fetches normal short properly
       assert(PS(-4) == 0x43)
