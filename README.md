@@ -12,6 +12,18 @@ Running uxn.lua as a standalone requires [LuaJIT](https://luajit.org/) or a bitw
 
 ## Quickstart
 
+### As a Love game
+
+`love .`
+
+Will try to load a file called `boot.rom` in the top-level directory.
+
+`love . somename.rom`
+
+Will try to load a file called `somename.rom` in the top-level directory.
+
+### Standalone use of the cpu
+
 ```lua
 Uxn = require "uxn"
 cpu = Uxn.Uxn:new()
@@ -42,13 +54,38 @@ print(cpu.program_stack:pop())
 
 ```
 
+## CPU
+
+`Uxn:new([memory])`
+
+Optionally pass in a table that holds the contents of memory. Remember that this table is will be accessed starting at 0 unlike most Lua tables.
+
+`Uxn:runUntilBreak()`
+
+Run the CPU until it hits a BRK instruction (0x00).
+
+`Uxn:addDevice(num, device)`
+
+Adds a [Device] to the specified device number. See the Varvara docs for standard device numbers.
+
 ## Devices
 
 The device object stores 16 bytes of memory as well as providing callbacks to trigger when different ports are written to
 
-### Device:addPort(port, length, onRead, onWrite)
+`Device:addPort(port, length, onRead, onWrite)`
 
-### Example 1
+`Device:readShort(addr)`
+
+`Device:writeShort(addr, value)`
+
+`Device:trigger`
+
+Jumps to the vector for this device and runs until it reaches a BRK instruction.
+
+
+### Examples
+
+Create a device that prints to the console every time port 0x08 is written to.
 
 ```lua
 local device = Device:new()
@@ -59,9 +96,17 @@ device:addPort(0x08, false, nil, function(byte)
 end)
 ```
 
+Attach a device to a cpu
+
+```lua
+local cpu = Uxn:new()
+
+cpu:addDevice(num, device)
+```
+
 ## TODO
 
-- Add file writing
-- Audo
-- Implement debug properties of System device
-- Add datetime device
+- [ ] Add file writing
+- [ ] Audo
+- [ ] Implement debug properties of System device
+- [ ] Add datetime device
