@@ -883,7 +883,7 @@ describe("the uxn instruction", function()
       mem_device[0x06] = 0xab
       mem_device:writeShort(0x07, 0x1337) -- Too long value in byte port
 
-      cpu:add_device(1, mem_device)
+      cpu:addDevice(1, mem_device)
 
       local func_device = Device:new()
       
@@ -893,7 +893,7 @@ describe("the uxn instruction", function()
       func_device:addPort(6, false, function() return 0xab end, nil)
       func_device:addPort(7, false, function() return 0x1337 end, nil)
 
-      cpu:add_device(2, func_device)
+      cpu:addDevice(2, func_device)
     end)
 
     it("fetches stored bytes", function()

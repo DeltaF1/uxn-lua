@@ -260,7 +260,7 @@ function Uxn:device_write(addr, value, k, r, s)
   end
 end
 
-function Uxn:add_device(device_num, device)
+function Uxn:addDevice(device_num, device)
   if self.devices[device_num] then
     error("Device already exists at ", bit.tohex(device_num))
   end
@@ -275,7 +275,7 @@ function Uxn:add_device(device_num, device)
   return device
 end
 
-function Uxn:trig_device(device_num)
+function Uxn:triggerDevice(device_num)
   local vector = self.vectors[device_num]
   --local vector = self.devices[device_num]:readShort(0)
   if vector then

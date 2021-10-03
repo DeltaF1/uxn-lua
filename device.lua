@@ -77,7 +77,7 @@ function Device:addPort(num, short, read, write)
 end
 
 function Device:trigger()
-  self.cpu:trig_device(self.device_num)
+  self.cpu:triggerDevice(self.device_num)
 end
 
 return Device
