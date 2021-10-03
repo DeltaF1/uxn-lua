@@ -22,15 +22,20 @@ SCALING = 2
 function setupCPU(mem)
   local cpu = Uxn:new(mem)
   cpu.ip = 0x0100
+
+  -- Debugging flags
   cpu.PRINT = false
   cpu.memory.ERROR_ON_UNINITIALIZED_READ = false
 
-  system = cpu:add_device(0, devices.system)
-  console = cpu:add_device(1, devices.console)
-  screen = cpu:add_device(2, devices.screen)
-  controller = cpu:add_device(8, devices.controller)
-  mouse = cpu:add_device(9, devices.mouse)
-  file = cpu:add_device(10, devices.file)
+  system = cpu:addDevice(0, devices.system)
+  console = cpu:addDevice(1, devices.console)
+  screen = devices.screen(WIDTH, HEIGHT)
+  print("screen width", screen:readShort(2), "screen height", screen:readShort(4))
+  cpu:addDevice(2, screen)
+
+  controller = cpu:addDevice(8, devices.controller)
+  mouse = cpu:addDevice(9, devices.mouse)
+  file = cpu:addDevice(10, devices.file)
 
   return cpu
 end
@@ -42,17 +47,17 @@ function love.load(arg)
   --love.graphics.setNewFont("mono.ttf", 14)
   love.graphics.setBackgroundColor(0,0,0)
   love.window.setMode((WIDTH * SCALING) + (PADDING * 2), (HEIGHT * SCALING) + (PADDING * 2))
-  
+
   -- This is the shader that translates system colours into
   -- palette colours
   paletteShader = love.graphics.newShader [[
     uniform vec3 palette[4];
-    
+
     vec4 effect( vec4 color, Image tex, vec2 texture_coords, vec2 screen_coords ) {
       vec4 pixel = Texel(tex, texture_coords);
       int index = int(pixel.r+(pixel.g*2));
       pixel.rgb = palette[index];
-        
+
       return pixel * color;
     }
   ]]
@@ -80,7 +85,7 @@ function love.load(arg)
 
   -- Execute the initial vector
   cpu:runUntilBreak()
-  print("cpu is done initial run") 
+  print("cpu is done initial run")
 
   if PROFILE then
     Device.DEBUG_NUM_CALLS.read = {}
@@ -135,19 +140,19 @@ function love.draw()
 
   love.graphics.push()
 
-  love.graphics.translate(PADDING, PADDING)
-  love.graphics.scale(SCALING, SCALING)
-  love.graphics.setColor(1,1,1)
+    love.graphics.translate(PADDING, PADDING)
+    love.graphics.scale(SCALING, SCALING)
+    love.graphics.setColor(1,1,1)
 
-  love.graphics.setBlendMode("replace", "premultiplied")
-  love.graphics.setShader(paletteShader)
+    love.graphics.setBlendMode("replace", "premultiplied")
+    love.graphics.setShader(paletteShader)
 
-  love.graphics.draw(screen.back)
+    love.graphics.draw(screen.back)
 
-  love.graphics.setBlendMode("alpha")
-  love.graphics.draw(screen.front)
+    love.graphics.setBlendMode("alpha")
+    love.graphics.draw(screen.front)
 
-  love.graphics.setShader()
+    love.graphics.setShader()
 
   love.graphics.pop()
 
@@ -178,7 +183,7 @@ end
 
 function love.keypressed(key)
   controller[2] = bor(controller[2], keyToBit[key] or 0)
-  
+
   local ascii
 
   if key == "backspace" then
@@ -210,7 +215,7 @@ end
 --[[ TODO
 function love.filedropped(file)
   -- TODO: Reset devices
-  cpu = setupCPU() 
+  cpu = setupCPU()
 
   file:open("r")
 
