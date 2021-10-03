@@ -133,7 +133,7 @@ end
 
 function shorts_to_bytes(shorts)
   local bytes = {}
-  
+
   for i = 1, #shorts do
     local short = shorts[i]
     local high_byte = rshift(short, 8)
@@ -149,17 +149,17 @@ end
 function Uxn:get_n(n, keep_bit, return_bit, short_bit)
   -- Choose which stack to operate on
   local stack = return_bit and self.return_stack or self.program_stack
- 
+
   -- Fetch 2 bytes for each number needed
   if short_bit then n = n * 2 end
- 
+
   -- Make sure the stack has enough space to fetch n bytes
   if not stack:check(-n) then
-    error("Stack not big enough to get "..tostring(n).." bytes")  
+    error("Stack not big enough to get "..tostring(n).." bytes")
   end
-  
+
   local output = {}
-  
+
   for i = 1, n do
     if keep_bit then
       output[(n - i) + 1] = stack:getnth(i-1)
@@ -171,7 +171,7 @@ function Uxn:get_n(n, keep_bit, return_bit, short_bit)
   if short_bit then
     output = bytes_to_shorts(output)
   end
-  
+
   return output
 end
 
@@ -222,18 +222,18 @@ end
 function Uxn:device_read(addr, k, r, s)
   local device_num = rshift(addr, 4)
   local device = self.devices[device_num]
-  
+
   if device then
     self.device_reads[device_num] = (self.device_reads[device_num] or 0) + 1
     local port = band(addr, 0x0f)
 
-    local value 
+    local value
     if s then
       value = device:readShort(port)
     else
       value = band(device[port], 0xff)
     end
-    
+
     return value
   else
     print("device", device_num, "doesn't exist")
@@ -266,7 +266,7 @@ function Uxn:addDevice(device_num, device)
   end
 
   print("adding", device_num)
-  
+
   device.cpu = self
   device.device_num = device_num
 
@@ -381,7 +381,7 @@ local opTable = {
     self:push(a, k, r, s)
   end,
 
-  -- 0x07 ROT 
+  -- 0x07 ROT
   function(self, k, r, s)
     local c = self:pop(k, r, s)
     local b = self:pop(k, r, s)
@@ -433,7 +433,7 @@ local opTable = {
 
     self.ip = addr
   end,
-  
+
   -- 0x0d JCN
   function(self, k, r, s)
     local addr = self:pop(k, r, s)
@@ -454,8 +454,8 @@ local opTable = {
     if not s then
       addr = uint8_to_int8(addr) + self.ip
     end
-    
-    -- Stash 
+
+    -- Stash
     self:push(self.ip, k, true, true)
 
     self.ip = addr
@@ -472,7 +472,7 @@ local opTable = {
   -- 0x10 LDZ
   function(self, k, r, s)
     local offset = self:pop(k, r, false)
-    
+
     local value = self.memory[offset]
 
     if s then
@@ -487,9 +487,9 @@ local opTable = {
     local data = self:get_n(s and 3 or 2, k, r, false)
 
     local offset = table.remove(data)
-     
+
     self.memory[offset] = data[1]
-    
+
     if s then
       self.memory[offset+1] = data[2]
     end
@@ -498,7 +498,7 @@ local opTable = {
   -- 0x12 LDR
   function(self, k, r, s)
     local offset = self:pop(k, r, false)
-    
+
     local addr = uint8_to_int8(offset) + self.ip
 
     local value = self.memory[addr]
@@ -515,9 +515,9 @@ local opTable = {
     local data = self:get_n(s and 3 or 2, k, r, false)
 
     local address = uint8_to_int8(table.remove(data)) + self.ip
-    
+
     self.memory[address] = data[1]
-    
+
     if s then
       self.memory[address+1] = data[2]
     end
@@ -541,9 +541,9 @@ local opTable = {
     local data = self:get_n(s and 4 or 3, k, r, false)
 
     local address = bytes_to_short(data[#data-1], data[#data])
-    
+
     self.memory[address] = data[1]
-    
+
     if s then
       self.memory[address+1] = data[2]
     end
@@ -561,7 +561,7 @@ local opTable = {
   function(self, k, r, s)
     local address = self:pop(k, r, false)
     local value = self:pop(k, r, s)
-    
+
     self:device_write(address, value, k, r, s)
   end,
 
