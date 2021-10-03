@@ -52,9 +52,21 @@ end
 
 system.initColours = false
 
+system:addPort(0x02, false, function(self)
+  return self.cpu.program_stack:len()
+end)
+
+system:addPort(0x03, false, function(self)
+  return self.cpu.return_stack:len()
+end)
+
 system:addPort(0x08, true, nil, regeneratePalette)
 system:addPort(0x0a, true, nil, regeneratePalette)
 system:addPort(0x0c, true, nil, regeneratePalette)
+
+system:addPort(0x0f, false, nil, function()
+  error("halt")
+end)
 
 -- portnum, short, read, write
 
