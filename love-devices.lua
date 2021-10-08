@@ -130,20 +130,11 @@ local screen = function(width, height)
   -- Sprite address
   screen:addPort(12, true)
 
-  -- Encode which system colour this pixel should be in the R and G components
-  local idxToRGB = {
-    [0] = {0, 0, 0},
-    [1] = {1, 0, 0},
-    [2] = {0, 1, 0},
-    [3] = {1, 1, 0},
-  }
-
   -- Write a single pixel
   screen:addPort(14, false, nil, function(self, pixel)
     local layer = band(pixel, 0x40) == 0 and self.back or self.front
     local index = band(pixel, 0x03)
 
-    local colour = idxToRGB[index]
     local alpha = 1.0
     if index == 0 and layer == self.front then
       -- Transparency
@@ -152,7 +143,7 @@ local screen = function(width, height)
     love.graphics.setBlendMode("replace", "premultiplied")
     love.graphics.setCanvas(layer)
 
-    love.graphics.setColor(colour[1], colour[2], colour[3], alpha)
+    love.graphics.setColor(index / 4.0, 0, 0, alpha)
 
     local x, y = self:readShort(8), self:readShort(10)
     -- Offset to account for points grid
@@ -279,14 +270,13 @@ local screen = function(width, height)
         end
 
         if colour_index ~= "none" then
-          local colour = idxToRGB[colour_index]
           local alpha = 1.0
           if colour_index == 0 and layer == self.front then
             alpha = 0.0
           end
 
           -- Offset by 0.5, 0.5 to account for points grid
-          points[#points+1] = {x + j + 0.5, y + i + 0.5, colour[1], colour[2], colour[3], alpha}
+          points[#points+1] = {x + j + 0.5, y + i + 0.5, colour_index / 4.0, 0, 0, alpha}
 
         end
       end

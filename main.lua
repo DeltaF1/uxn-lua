@@ -55,7 +55,7 @@ function love.load(arg)
 
     vec4 effect( vec4 color, Image tex, vec2 texture_coords, vec2 screen_coords ) {
       vec4 pixel = Texel(tex, texture_coords);
-      int index = int(pixel.r+(pixel.g*2));
+      int index = int(pixel.r * 4.0 + 0.5);
       pixel.rgb = palette[index];
 
       return pixel * color;
