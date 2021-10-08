@@ -48,6 +48,8 @@ function love.load(arg)
   love.graphics.setBackgroundColor(0,0,0)
   love.window.setMode((WIDTH * SCALING) + (PADDING * 2), (HEIGHT * SCALING) + (PADDING * 2))
 
+  love.keyboard.setKeyRepeat(true)
+
   -- This is the shader that translates system colours into
   -- palette colours
   paletteShader = love.graphics.newShader [[
@@ -184,7 +186,7 @@ end
 function love.keypressed(key)
   controller[2] = bor(controller[2], keyToBit[key] or 0)
 
-  local ascii
+  local ascii = 0
 
   if key == "backspace" then
     ascii = 0x08
@@ -192,15 +194,11 @@ function love.keypressed(key)
     ascii = 0x0d
   elseif key == "tab" then
     ascii = 0x09
-  elseif key == "space" then
-    ascii = 0x20
   elseif key == "delete" then
     ascii = 0x7f
   end
 
-  if ascii then
-    controller[3] = ascii
-  end
+  controller[3] = ascii
 
   controller:trigger()
 end
