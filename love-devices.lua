@@ -166,21 +166,21 @@ local screen = function(width, height)
 
   ONE_BPP_PALETTE = {
     [0] = {0, 0},
-    {1, 0},
-    {2, 0},
-    {3, 0},
     {0, 1},
-    {1, "none"},
-    {2, 1},
-    {3, 1},
     {0, 2},
-    {1, 2},
-    {2, "none"},
-    {3, 2},
     {0, 3},
+    {1, 0},
+    {"none", 1},
+    {1, 2},
     {1, 3},
+    {2, 0},
+    {2, 1},
+    {"none", 2},
     {2, 3},
-    {3, "none"},
+    {3, 0},
+    {3, 1},
+    {3, 2},
+    {"none", 3},
   }
 
   TWO_BPP_PALETTE = {
@@ -224,8 +224,6 @@ local screen = function(width, height)
     local palette
     if spriteMode == 0 then
       palette = ONE_BPP_PALETTE[band(spriteByte, 0x0f)]
-      -- TODO: Fix the palette table
-      palette = {palette[2], palette[1]}
     else
       palette = TWO_BPP_PALETTE[band(spriteByte, 0x0f)]
     end
