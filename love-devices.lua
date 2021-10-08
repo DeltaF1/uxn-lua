@@ -106,13 +106,15 @@ local screen = function(width, height)
   screen.back:setFilter("nearest", "nearest")
   screen.front:setFilter("nearest", "nearest")
 
+
+  -- TODO: Resize the screen and canvases
+  -- For now, don't allow the Uxn cpu to overwrite this valu
+
   -- Width
-  screen:addPort(2, true)
-  screen:writeShort(2, width)
+  screen:addPort(2, true, function(self) return width end)
 
   -- Height
-  screen:addPort(4, true)
-  screen:writeShort(4, height)
+  screen:addPort(4, true, function(self) return height end)
 
   -- Auto
   screen:addPort(6, false, nil, function(self, byte)
@@ -216,7 +218,7 @@ local screen = function(width, height)
     local verticalFlip = band(spriteByte, 0x20) ~= 0
     local horizontalFlip = band(spriteByte, 0x10) ~= 0
 
-    local x,y = self:readShort(0x08), self:readShort(0x0a)
+    local x, y = self:readShort(0x08), self:readShort(0x0a)
     local spriteAddr = self:readShort(0x0c)
 
     local system_palette = {[0] = {0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}}
