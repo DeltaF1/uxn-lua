@@ -7,15 +7,7 @@ local arshift, rshift, lshift = bit.arshift, bit.rshift, bit.lshift
 local function uint8_to_int8(byte)
   byte = band(byte, 0xff)
   if band(byte, 0x80) ~= 0 then
-    -- Two's complement
-    byte = bnot(byte) + 1
-
-    -- Crop out the non 8-bit data
-    byte = band(byte, 0xff)
-
-    -- It's now the absolute value
-    -- Return a negative lua number
-    byte = -byte
+    byte = byte - 0x100
   end
 
   return byte
