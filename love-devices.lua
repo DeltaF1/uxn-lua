@@ -140,24 +140,17 @@ local screen = function(width, height)
 
   -- Write a single pixel
   screen:addPort(14, false, nil, function(self, pixel)
-    local layer = band(pixel, 0x40)
+    local layer = band(pixel, 0x40) == 0 and self.back or self.front
     local index = band(pixel, 0x03)
-
-    local canvas
-    if layer == 0 then
-      canvas = self.back
-    else
-      canvas = self.front
-    end
 
     local colour = idxToRGB[index]
     local alpha = 1.0
-    if index == 0 and layer > 0 then
+    if index == 0 and layer == self.front then
       -- Transparency
       alpha = 0.0
     end
     love.graphics.setBlendMode("replace", "premultiplied")
-    love.graphics.setCanvas(canvas)
+    love.graphics.setCanvas(layer)
 
     love.graphics.setColor(colour[1], colour[2], colour[3], alpha)
 
