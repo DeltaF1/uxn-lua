@@ -171,6 +171,9 @@ function Uxn:push(value, k, r, s)
   local stack = r and self.return_stack or self.program_stack
   --assert(stack:check(1 + (s and 1 or 0)), "Can't push", value, "k", k, "r", r, "s", s)
 
+  if stack.head > 0xfe then
+    error(r and 'return stack overflow' or 'working stack overflow')
+  end
   if s then
     stack:push(band(rshift(value, 8), 0xff))
   end
@@ -183,7 +186,9 @@ function Uxn:pop(k, r, s)
   if k then
     local offset = self.peek_offset
     if s then
-      value = bytes_to_short(stack:getnth(offset+1), stack:getnth(offset))
+      local low = stack:getnth(offset)
+      local high = stack:getnth(offset+1)
+      value = low and high and bytes_to_short(high, low)
       offset = offset + 2
     else
       value = stack:getnth(offset)
@@ -193,10 +198,14 @@ function Uxn:pop(k, r, s)
   else
     if s then
       local low = stack:pop()
-      return bytes_to_short(stack:pop(), low)
+      local high = stack:pop()
+      value = low and high and bytes_to_short(high, low)
     else
-      return stack:pop()
+      value = stack:pop()
     end
+  end
+  if not value then
+    error(r and 'return stack underflow' or 'working stack underflow')
   end
   return value
 end
