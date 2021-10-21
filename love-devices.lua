@@ -79,7 +79,7 @@ console.stderr = ""
 console:addPort(2, false)
 -- write char
 console:addPort(8, false, nil, function(self, byte)
-  print("wrote char")
+  print(string.char(byte))
   self.stdout = self.stdout..string.char(byte)
 end)
 -- error char
