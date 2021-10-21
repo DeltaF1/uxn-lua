@@ -430,11 +430,42 @@ file:addPort(14, true, function(self)
   -- file:write(encodedData)
 end)
 
+local datetime = Device:new()
+datetime.name = 'datetime'
+datetime:addPort(0, true, function(self)
+  return tonumber(os.date('%Y'))
+end)
+datetime:addPort(2, false, function(self)
+  return tonumber(os.date('%m')) - 1
+end)
+datetime:addPort(3, false, function(self)
+  return tonumber(os.date('%d'))
+end)
+datetime:addPort(4, false, function(self)
+  return tonumber(os.date('%H'))
+end)
+datetime:addPort(5, false, function(self)
+  return tonumber(os.date('%M'))
+end)
+datetime:addPort(6, false, function(self)
+  return tonumber(os.date('%S'))
+end)
+datetime:addPort(7, false, function(self)
+  return tonumber(os.date('%u')) % 7
+end)
+datetime:addPort(8, true, function(self)
+  return tonumber(os.date('%j')) - 1
+end)
+datetime:addPort(10, true, function(self)
+  return 0
+end)
+
 devices.system = system
 devices.console = console
 devices.screen = screen
 devices.controller = controller
 devices.mouse = mouse
 devices.file = file
+devices.datetime = datetime
 
 return devices

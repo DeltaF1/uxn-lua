@@ -36,7 +36,7 @@ function setupCPU(mem)
   controller = cpu:addDevice(8, devices.controller)
   mouse = cpu:addDevice(9, devices.mouse)
   file = cpu:addDevice(10, devices.file)
-
+  cpu:addDevice(11, devices.datetime)
   return cpu
 end
 
