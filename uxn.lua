@@ -67,7 +67,7 @@ local Memory = {
       if self.ERROR_ON_UNINITIALIZED_READ then
         error("READ UNINITIALIZED MEMORY @ "..bit.tohex(k))
       end
-      return love.math.random(255)
+      return 0 --love.math.random(255)
     end
   end
 }
@@ -237,7 +237,6 @@ function Uxn:device_read(addr, k, r, s)
 
     return value
   else
-    print("device", device_num, "doesn't exist")
     return 0
   end
 end
@@ -265,8 +264,6 @@ function Uxn:addDevice(device_num, device)
   if self.devices[device_num] then
     error("Device already exists at ", bit.tohex(device_num))
   end
-
-  print("adding", device_num)
 
   device.cpu = self
   device.device_num = device_num
@@ -637,17 +634,18 @@ function Uxn:runUntilBreak()
   local extractOpcode = extractOpcode
   local memory = self.memory
   while true do
+    local opline
     local opByte = memory[self.ip]
     if opByte == 0 then break end
     if self.PRINT then
-      print("ip", bit.tohex(self.ip))
+      opline = bit.tohex(self.ip)
     end
     self.ip = self.ip + 1
 
     local opcode, k, r, s = extractOpcode(opByte)
     --self:profile(opNames[opcode])
     if self.PRINT then
-      print("OP", opNames[opcode], "keep", k, "return", r, "short", s)
+      print(opline.." : "..opNames[opcode]..(s and "2" or "")..(r and "r" or "")..(k and "k" or ""))
       print("PS", self.program_stack:debug())
       print("RS", self.return_stack:debug())
     end
