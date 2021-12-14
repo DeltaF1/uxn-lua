@@ -454,7 +454,7 @@ local opTable = {
     end
 
     -- Stash
-    self:push(self.ip, k, true, true)
+    self:push(self.ip, k, not r, true)
 
     self.ip = addr
   end,
