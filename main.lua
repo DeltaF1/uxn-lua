@@ -75,11 +75,8 @@ function love.load(arg)
   -- Takes in a filename from the command line, else load boot.rom
   local data, size = love.filesystem.read("data", arg[1] or "boot.rom")
 
-  -- Unpack the bytes into a Lua table
-  data = {love.data.unpack(string.rep("B", size), data)}
-
-  for i = 1, #data - 1 do
-    memory[i + 255] = data[i]
+  for i = 1, size do
+      memory[i + 255] = love.data.unpack("B", data, i)
   end
 
   -- Create a new CPU
