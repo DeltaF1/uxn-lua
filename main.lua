@@ -16,7 +16,7 @@ PROFILE = nil
 -- Screen parameters
 WIDTH = 300
 HEIGHT = 200
-PADDING = 20
+PADDING = 4
 SCALING = 2
 
 function setupCPU(mem)
@@ -30,7 +30,6 @@ function setupCPU(mem)
   system = cpu:addDevice(0, devices.system)
   console = cpu:addDevice(1, devices.console)
   screen = devices.screen(WIDTH, HEIGHT)
-  print("screen width", screen:readShort(2), "screen height", screen:readShort(4))
   cpu:addDevice(2, screen)
 
   controller = cpu:addDevice(8, devices.controller)
@@ -84,7 +83,6 @@ function love.load(arg)
 
   -- Execute the initial vector
   cpu:runUntilBreak()
-  print("cpu is done initial run")
 
   if PROFILE then
     Device.DEBUG_NUM_CALLS.read = {}
